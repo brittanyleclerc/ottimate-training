@@ -540,6 +540,27 @@ function updatePortal() {
     ctaFund.textContent = 'Continue →';
   }
 
+  // Fundamentals is the only track with vertical-graded content (Module 3 + exam). If the rep's verticals
+  // (shared profile) differ from the ones that work was completed with, say so here — quietly — so they
+  // know before opening it. The dashboard itself shows the review / optional-retake nudge.
+  (function(){
+    const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.slice().sort().join(',') === b.slice().sort().join(',');
+    let prof = null, fund = null;
+    try { prof = JSON.parse(localStorage.getItem('ottimate_profile') || 'null'); } catch(e) {}
+    try { fund = JSON.parse(localStorage.getItem('ottimate_fundamentals_state') || 'null'); } catch(e) {}
+    const cur = (prof && Array.isArray(prof.verticals) && prof.verticals.length) ? prof.verticals : (fund && fund.verticals) || [];
+    const m3Stale = !!(fund && Array.isArray(fund.modulesDone) && fund.modulesDone.includes(3) && Array.isArray(fund.m3Verticals) && !same(fund.m3Verticals, cur));
+    const examStale = !!(fund && fund.examPassed === true && Array.isArray(fund.certVerticals) && fund.certVerticals.length && !same(fund.certVerticals, cur));
+    const old = cardFund.querySelector('.vert-note'); if (old) old.remove();
+    if (m3Stale || examStale) {
+      const note = document.createElement('div');
+      note.className = 'vert-note';
+      note.style.cssText = 'font-size:0.72rem;color:#7D4C00;background:var(--orange-light);border:1px solid var(--orange);border-radius:6px;padding:0.3rem 0.55rem;margin-top:0.5rem;line-height:1.4;';
+      note.textContent = '🔄 Your verticals changed since you ' + (examStale ? 'certified' : 'completed Module 3') + ' — open to review or retake (optional).';
+      const status = cardFund.querySelector('.card-status'); (status || cardFund).insertAdjacentElement(status ? 'beforebegin' : 'beforeend', note);
+    }
+  })();
+
   // ── Demo 101 card ──
   const cardD101 = document.getElementById('card-d101');
   const statusD101 = document.getElementById('status-d101');

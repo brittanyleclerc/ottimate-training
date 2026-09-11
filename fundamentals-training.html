@@ -1328,10 +1328,10 @@ const MODULE_NAMES = {
 };
 
 const MODULE_META = {
-  1: { icon:'📚', desc:'Master the accounting concepts and AP terminology every sales rep needs to speak the customer\'s language.', time:'20 min', qs:5 },
-  2: { icon:'🏢', desc:'Deep dive into Ottimate\'s origin, mission, core values, value proposition, and ideal customer profile.', time:'15 min', qs:5 },
-  3: { icon:'🗂️', desc:'Vertical-specific pain points, Ottimate\'s solution, and key talking points for your selected industries.', time:'20 min', qs:'varies' },
-  4: { icon:'🧠', desc:'Tailor your pitch to four key buyer personas: AP Manager, CFO, IT/Ops, and Owner/Operator.', time:'20 min', qs:5 }
+  1: { icon:'📚', desc:'Master the accounting concepts and AP terminology every sales rep needs to speak the customer\'s language.', time:'15 min', qs:5 },
+  2: { icon:'🏢', desc:'Deep dive into Ottimate\'s origin, mission, core values, value proposition, and ideal customer profile.', time:'10 min', qs:5 },
+  3: { icon:'🗂️', desc:'Vertical-specific pain points, Ottimate\'s solution, and key talking points for your selected industries.', time:'10 min', qs:'varies' },
+  4: { icon:'🧠', desc:'Tailor your pitch to four key buyer personas: AP Manager, CFO, IT/Ops, and Owner/Operator.', time:'15 min', qs:5 }
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────
@@ -1373,6 +1373,7 @@ function renderDashboard() {
       ${examReady
         ? `<div class="text-center"><button class="btn btn-success" onclick="renderExam();updateSidebar('exam')">🎓 Take Your Final Certification Exam</button></div>`
         : `<p class="text-muted text-center" style="font-size:0.82rem;">Complete all 4 modules to unlock the Final Certification Exam.</p>`}
+      ${APP.examPassed ? `<div class="text-center mt-2"><button class="btn btn-secondary btn-sm" onclick="showCertificate()">🏆 View Certificate</button></div>` : ''}
     </div>
     <div class="module-card-grid">${cardsHTML}</div>
     <div class="card mt-3" style="background:var(--teal-light);border:2px solid var(--teal);">
@@ -1564,6 +1565,7 @@ function submitInlineQuiz(moduleNum) {
   if (passed) {
     APP.modulesDone.add(moduleNum);
     APP.quizScores[moduleNum] = { score, total };
+    if (moduleNum === 3) APP.m3Verticals = APP.verticals.slice();   // snapshot: the verticals this module was completed with
     updateProgress();
     updateSidebar('m' + moduleNum);
   }
@@ -2400,6 +2402,15 @@ var OTT_PROFILE_CSS = ''
   + '#profile-card .pc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.5rem;margin:0.4rem 0 1rem;}'
   + '#profile-card .pc-grid > *{margin:0;}'
   + '#profile-card .pc-actions{display:flex;gap:0.5rem;flex-wrap:wrap;}'
+  + '#lens-card .pc-chip{display:inline-block;font-size:0.74rem;font-weight:600;color:var(--accent);background:var(--accent-light);border:1px solid var(--accent);border-radius:100px;padding:0.12rem 0.6rem;margin-bottom:0.35rem;}'
+  + '#lens-card .pc-lens-grid{display:grid;grid-template-columns:1fr;gap:0.9rem 1.5rem;}'
+  + '#lens-card .pc-lens-grid.pc-lens-2col{grid-template-columns:1fr 1fr;}'
+  + '@media (max-width:860px){#lens-card .pc-lens-grid.pc-lens-2col{grid-template-columns:1fr;}}'
+  + '#lens-card .pc-lens-block{min-width:0;}'
+  + '#lens-card .pc-lens-list{margin:0 0 0 1.05rem;padding:0;font-size:0.82rem;line-height:1.5;color:var(--gray5);}#lens-card .pc-lens-list li{margin-bottom:0.25rem;}'
+  + '#lens-card .pc-lens-tag{font-size:0.86rem;font-weight:700;color:var(--navy);margin-bottom:0.2rem;}'
+  + '#lens-card .pc-lens-icp{font-size:0.82rem;color:var(--gray5);line-height:1.5;}'
+  + '#lens-card .pc-lens-more{display:inline-block;margin-top:0.8rem;font-size:0.8rem;font-weight:600;color:var(--accent);text-decoration:none;}#lens-card .pc-lens-more:hover{text-decoration:underline;}'
   + '.pc-nudge{margin-top:0.7rem;padding:0.55rem 0.7rem;border-radius:8px;background:var(--orange-light);border:1px solid var(--orange);color:#7D4C00;font-size:0.78rem;line-height:1.45;display:flex;flex-direction:column;gap:0.45rem;cursor:default;}.pc-nudge .btn{align-self:flex-start;}'
   + '.pc-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:0.65rem 1.5rem;border-radius:8px;font-weight:700;font-size:0.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);max-width:90vw;text-align:center;}';
 
@@ -2407,11 +2418,14 @@ var OTT_PROFILE_CSS = ''
    Only the Fundamentals track has vertical-specific graded content, so only it resets anything. */
 var OTT_PROFILE_BEHAVIOR = {
   // Certs are snapshots: a vertical change never resets anything. Fundamentals' Module 3 is the only
-  // vertical-graded content, so it gets a "review / optional retake" nudge (m3Stale) instead.
+  // vertical-graded content, so it gets a "review / optional retake" nudge instead. Staleness is DERIVED on
+  // every render by comparing the current verticals with the snapshots taken at completion (APP.m3Verticals)
+  // and at certification (APP.certVerticals) — so it appears no matter which dashboard changed the profile,
+  // and disappears again if the rep reverts to the selection they completed with.
   'fundamentals-training': {
     apply: function(){
       if (typeof APP === 'undefined') return '';
-      if (APP.modulesDone && APP.modulesDone.has(3)){ APP.m3Stale = true; return '✅ Profile updated — Module 3 now reflects your new verticals. Review it when you can; your completion and certification are unchanged.'; }
+      if (ottVerticalsStale()) return '✅ Profile updated — Module 3 now reflects your new verticals. Review it when you can; your completion and certification are unchanged.';
       return '✅ Profile updated — Module 3 content now reflects your new verticals.';
     }
   },
@@ -2468,6 +2482,47 @@ function ottInjectProfileCard(){
   if (main.querySelector('#profile-card')) return;
   var hero = main.querySelector('.page-hero'); if (!hero) return;
   hero.insertAdjacentHTML('afterend', ottProfileCardHTML());
+  ottInjectLensCard();
+}
+/* ── "🎯 Your Demo Lens" — per-vertical call-outs for THIS dashboard, right under the profile card.
+   Data: VERTICAL_LENSES[dashboard] (injected by inject-verticals.js). Fundamentals has no lens, so it
+   shows each vertical's tagline + ICP from VERTICAL_PROFILES instead. >2 verticals → two columns. */
+function ottLensCardHTML(){
+  if (typeof APP === 'undefined' || !Array.isArray(APP.verticals) || !APP.verticals.length) return '';
+  var lenses = (typeof VERTICAL_LENSES !== 'undefined') ? VERTICAL_LENSES[ottProfileDash()] : null;
+  var profiles = (typeof VERTICAL_PROFILES !== 'undefined') ? VERTICAL_PROFILES : null;
+  if (!lenses && !profiles) return '';
+  var esc = function(s){ return String(s).replace(/&(?!(amp|lt|gt|quot|#\d+);)/g, '&amp;'); };
+  var verts = APP.verticals.filter(function(v){ return (lenses && lenses[v]) || (profiles && profiles[v]); });
+  if (!verts.length) return '';
+  var blocks = verts.map(function(v){
+    var label = ottProfileVertLabel(v);
+    var emoji = (profiles && profiles[v] && profiles[v].emoji) ? profiles[v].emoji + ' ' : '';
+    var body;
+    if (lenses && lenses[v]) {
+      body = '<ul class="pc-lens-list">' + lenses[v].points.map(function(p){ return '<li><strong>' + esc(p[0]) + ':</strong> ' + esc(p[1]) + '</li>'; }).join('') + '</ul>';
+    } else {
+      var p = profiles[v];
+      body = '<div class="pc-lens-tag">' + esc(p.tagline) + '</div><div class="pc-lens-icp"><strong>Ideal customer:</strong> ' + esc(p.icp) + '</div>';
+    }
+    return '<div class="pc-lens-block"><span class="pc-chip">' + emoji + esc(label) + '</span>' + body + '</div>';
+  }).join('');
+  var title = lenses ? ('🎯 Your Demo Lens — ' + esc(lenses._title || 'Tailored to Your Verticals')) : '🎯 Your Verticals — At a Glance';
+  var sub = lenses ? 'How to angle this demo for the verticals you selected. Edit your verticals above and this refreshes.'
+                   : 'The positioning for each vertical you selected. Edit your verticals above and this refreshes.';
+  var more = (typeof ottOpenRefTab === 'function') ? '<a class="pc-lens-more" href="#" onclick="ottOpenRefTab(\'ref-verticals\');return false;">Full vertical profiles in Reference Materials →</a>' : '';
+  return '<div class="card mb-2" id="lens-card" style="border-left:4px solid var(--accent);">'
+    + '<div class="card-title">' + title + '</div>'
+    + '<p class="text-muted" style="font-size:0.82rem;margin-bottom:0.75rem;">' + sub + '</p>'
+    + '<div class="pc-lens-grid' + (verts.length > 2 ? ' pc-lens-2col' : '') + '">' + blocks + '</div>'
+    + more + '</div>';
+}
+function ottInjectLensCard(){
+  var main = document.getElementById('main-area'); if (!main) return;
+  var old = main.querySelector('#lens-card'); if (old) old.remove();
+  var html = ottLensCardHTML(); if (!html) return;
+  var after = main.querySelector('#profile-card') || main.querySelector('.page-hero'); if (!after) return;
+  after.insertAdjacentHTML('afterend', html);
 }
 /* ── editor ── */
 var PF_ROLE = '', PF_VERTS = [];
@@ -2524,15 +2579,28 @@ function ottRetakeModule3(){
   if (typeof examAnswers !== 'undefined') examAnswers = {};
   if (typeof examSubmitted !== 'undefined') examSubmitted = false;
   if (typeof EXAM_QUESTIONS !== 'undefined') EXAM_QUESTIONS = [];
-  APP.m3Stale = false;
+  APP.m3Verticals = undefined;
   saveState(); showDashboard();
   ottProfileToast('Module 3 and the Final Exam are ready to retake with your new verticals.');
 }
+function ottSameSet(a, b){ if (!Array.isArray(a) || !Array.isArray(b)) return false; return a.slice().sort().join(',') === b.slice().sort().join(','); }
+/* Fundamentals only. True when vertical-graded work was completed under a different vertical selection than the
+   current one: Module 3 (vs. APP.m3Verticals) or the Final Exam (vs. APP.certVerticals). Records that completed
+   Module 3 before the snapshot existed are seeded with the current selection once (assumed completed with it). */
+function ottVerticalsStale(){
+  if (typeof APP === 'undefined' || !Array.isArray(APP.verticals) || !APP.verticals.length) return false;
+  var m3done = APP.modulesDone && APP.modulesDone.has(3);
+  if (m3done && !Array.isArray(APP.m3Verticals)) { APP.m3Verticals = APP.verticals.slice(); if (typeof saveState === 'function') saveState(); }
+  var m3Stale = m3done && !ottSameSet(APP.m3Verticals, APP.verticals);
+  var examStale = APP.examPassed === true && Array.isArray(APP.certVerticals) && APP.certVerticals.length > 0 && !ottSameSet(APP.certVerticals, APP.verticals);
+  return m3Stale || examStale;
+}
 function ottInjectModule3Nudge(){
-  if (ottProfileDash() !== 'fundamentals-training' || typeof APP === 'undefined' || !APP.m3Stale) return;
+  if (ottProfileDash() !== 'fundamentals-training' || typeof APP === 'undefined' || !ottVerticalsStale()) return;
   var card = null; document.querySelectorAll('#main-area .module-card').forEach(function(c){ if ((c.getAttribute('onclick') || '').indexOf('showModule(3)') >= 0) card = c; });
   if (!card || card.querySelector('.pc-nudge')) return;
-  card.insertAdjacentHTML('beforeend', '<div class="pc-nudge" onclick="event.stopPropagation();"><div>🔄 <strong>Your verticals changed</strong> after you completed this module — the content now reflects your new selection. Your completion and certification are unchanged.</div><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();ottRetakeModule3();">Retake for my new verticals</button></div>');
+  var meta = card.querySelector('.mc-meta');
+  (meta || card).insertAdjacentHTML(meta ? 'afterend' : 'beforeend', '<div class="pc-nudge" onclick="event.stopPropagation();"><div>🔄 <strong>Your verticals changed</strong> since you completed this module (on any dashboard) — the content now reflects your new selection. Your completion and certification are unchanged.</div><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();ottRetakeModule3();">Retake for my new verticals</button></div>');
 }
 if (typeof renderDashboard === 'function' && !window.__pcDashWrap){
   window.__pcDashWrap = true; var _pcRd = renderDashboard;
@@ -3550,7 +3618,7 @@ document.addEventListener('click', function(e) {
     if (s) {
       if (s.modulesDone) s.modulesDone.forEach(m => APP.modulesDone.add(m));
       if (s.quizScores) APP.quizScores = s.quizScores;
-      if (s.m3Stale) APP.m3Stale = true;
+      if (Array.isArray(s.m3Verticals)) APP.m3Verticals = s.m3Verticals.slice();
       if (s.iqAnswers) IQ_ANSWERS = s.iqAnswers;
       if (s.iqSubmitted) IQ_SUBMITTED = s.iqSubmitted;
       if (s.examPassed) { APP.examPassed = s.examPassed; examPassedPriorSession = true; }
@@ -3714,7 +3782,7 @@ function saveState() {
   try {
     ottSafeSetState('ottimate_fundamentals_state', ({
       schemaV: OTT_SCHEMA_V,
-      m3Stale: !!APP.m3Stale,
+      m3Verticals: Array.isArray(APP.m3Verticals) ? APP.m3Verticals : undefined,
       name: APP.name,
       role: APP.role,
       verticals: APP.verticals,
