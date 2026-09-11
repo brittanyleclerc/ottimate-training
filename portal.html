@@ -6,16 +6,19 @@
 <title>Ottimate Sales Training Portal</title>
 <style>
 :root {
+  /* ===== CANONICAL BASE TOKENS — identical across all dashboards (see _shared/ottimate-tokens.css). Do not edit here; edit the source + re-sync. ===== */
   --navy: #0A2E4A;
   --blue: #1565A0;
   --teal: #00BCD4;
   --teal-light: #E0F7FA;
+  --purple: #7B2D8B;
+  --purple-light: #F3E5F5;
   --green: #27AE60;
   --green-light: #D5F5E3;
   --orange: #F39C12;
   --orange-light: #FEF9E7;
-  --purple: #7B2D8B;
-  --purple-light: #F3E5F5;
+  --red: #E74C3C;
+  --red-light: #FDEDEC;
   --gray1: #F8F9FA;
   --gray2: #E9ECEF;
   --gray3: #ADB5BD;
@@ -25,11 +28,21 @@
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
-  --radius: 12px;
+  --radius: 10px;
+  --fs-hero: 1.6rem; --fs-h1: 1.35rem; --fs-h2: 1.05rem; --fs-body: 0.9rem; --fs-small: 0.82rem; --fs-tiny: 0.72rem;
+  --sidebar-w: 240px; --header-h: 58px; --main-pad: 1.75rem 2rem; --main-max: 1180px;
+  /* ===== LEVEL ACCENT — portal (neutral navy/blue hub). The ONLY per-file override. ===== */
+  --accent: #1565A0;
+  --accent-light: #E7F0F8;
+  --accent-mid: #1565A0;
+  --accent-dark: #0A2E4A;
+  --banner-a: #0A2E4A;   /* banner gradient start (top bar + page heroes) */
+  --banner-b: #1565A0;   /* banner gradient end */
 }
+html { -webkit-text-size-adjust: 100%; font-size: 15px; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   background: var(--gray1);
   color: var(--gray5);
   min-height: 100vh;
@@ -37,7 +50,7 @@ body {
 
 /* ── HEADER ── */
 .portal-header {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 60%, #1565A0 100%);
+  background: linear-gradient(135deg, var(--banner-a) 0%, var(--banner-b) 60%, var(--banner-b) 100%);
   color: white;
   padding: 2.5rem 2rem 2rem;
   text-align: center;
@@ -408,7 +421,7 @@ body {
           <div class="card-level-tag">Requires Demo 101 + Demo 102</div>
           <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
             <div class="card-icon">🧾</div>
-            <div class="card-title">PO Match</div>
+            <div class="card-title">Demo 201 — PO Match</div>
           </div>
         </div>
         <div class="card-desc">Purchase-order matching end to end — product mechanics, the Demonstrating-to-Win delivery method, discovery &amp; the capabilities menu, and the full demo walkthrough. 5 modules + final exam.</div>
@@ -461,7 +474,8 @@ function getState() {
       passed:  !!(fund && fund.examPassed),
       modules: fund && fund.modulesDone ? fund.modulesDone.length : 0,
       score:   fund && fund.examScore != null ? fund.examScore : null,
-      certDate: fund && fund.certDate || ''
+      certDate: fund && fund.certDate || '',
+      certVerts: (fund && Array.isArray(fund.certVerticals) && fund.certVerticals.length) ? fund.certVerticals : []
     },
     d101: {
       name:    d101 && d101.name    || '',
@@ -469,7 +483,8 @@ function getState() {
       passed:  !!(d101 && d101.examPassed),
       modules: d101 && d101.modulesDone ? d101.modulesDone.length : 0,
       score:   d101 && d101.examScore != null ? d101.examScore : null,
-      certDate: d101 && d101.certDate || ''
+      certDate: d101 && d101.certDate || '',
+      certVerts: (d101 && Array.isArray(d101.certVerticals) && d101.certVerticals.length) ? d101.certVerticals : []
     },
     d102: {
       name:    d102 && d102.name    || '',
@@ -477,7 +492,8 @@ function getState() {
       passed:  !!(d102 && d102.examPassed),
       modules: d102 && d102.modulesDone ? d102.modulesDone.length : 0,
       score:   d102 && d102.examScore != null ? d102.examScore : null,
-      certDate: d102 && d102.certDate || ''
+      certDate: d102 && d102.certDate || '',
+      certVerts: (d102 && Array.isArray(d102.certVerticals) && d102.certVerticals.length) ? d102.certVerticals : []
     },
     pm: {
       name:    pm && pm.name    || '',
@@ -485,7 +501,8 @@ function getState() {
       passed:  !!(pm && pm.examPassed),
       modules: pm && pm.modulesDone ? pm.modulesDone.length : 0,
       score:   pm && pm.examScore != null ? pm.examScore : null,
-      certDate: pm && pm.certDate || ''
+      certDate: pm && pm.certDate || '',
+      certVerts: (pm && Array.isArray(pm.certVerticals) && pm.certVerticals.length) ? pm.certVerticals : []
     }
   };
 }
@@ -594,22 +611,24 @@ function updatePortal() {
   }
 
   // ── Certs earned section ──
+  const VERT_LABELS = { restaurants:'Restaurants', hospitality:'Hospitality', retail:'Retail', grocery:'Grocery', seniorliving:'Senior Living', healthcare:'Healthcare' };
+  const earnedSub = (t) => (t.certDate ? ('Earned ' + t.certDate) : 'Certified') + (t.certVerts.length ? (' · for ' + t.certVerts.map(v => VERT_LABELS[v] || v).join(', ')) : '');
   const earned = [];
   if (s.fund.passed) earned.push({
     icon: '🎓', title: 'Fundamentals Certified',
-    sub: s.fund.certDate ? ('Earned ' + s.fund.certDate) : 'Certified'
+    sub: earnedSub(s.fund)
   });
   if (s.d101.passed) earned.push({
     icon: '🏅', title: 'Demo 101 Certified — Core AP & Statements',
-    sub: s.d101.certDate ? ('Earned ' + s.d101.certDate) : 'Certified'
+    sub: earnedSub(s.d101)
   });
   if (s.d102.passed) earned.push({
     icon: '🏅', title: 'Demo 102 Certified — Vendor Pay & Basic Reports',
-    sub: s.d102.certDate ? ('Earned ' + s.d102.certDate) : 'Certified'
+    sub: earnedSub(s.d102)
   });
   if (s.pm.passed) earned.push({
-    icon: '🎖️', title: 'PO Match Certified — Level 2',
-    sub: s.pm.certDate ? ('Earned ' + s.pm.certDate) : 'Certified'
+    icon: '🎖️', title: 'Demo 201 Certified — PO Match',
+    sub: earnedSub(s.pm)
   });
 
   const certSection = document.getElementById('cert-section');
@@ -628,8 +647,8 @@ function updatePortal() {
 }
 
 function confirmReset() {
-  if (confirm('Reset all training progress? This will clear all module completions, exam scores, and certifications from this browser.')) {
-    ['ottimate_fundamentals_state','ottimate_demo_state','ottimate_d102_state','ottimate_pomatch_state'].forEach(k => {
+  if (confirm('Reset all training progress? This will clear the saved name, role, verticals, and all module completions, exam scores, and certifications from this browser (every dashboard).')) {
+    ['ottimate_fundamentals_state','ottimate_demo_state','ottimate_d102_state','ottimate_pomatch_state','ottimate_profile'].forEach(k => {
       try { localStorage.removeItem(k); } catch(e) {}
     });
     location.reload();

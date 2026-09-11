@@ -1,0 +1,94 @@
+/* ============================================================================
+   OTTIMATE TRAINING — CANONICAL DESIGN TOKENS  (source of truth)
+   ----------------------------------------------------------------------------
+   This block is pasted VERBATIM into the <style> of every training dashboard
+   AND portal.html. Nothing here may drift between files. The ONLY thing a
+   dashboard overrides is the four --accent-* variables (see LEVEL ACCENTS).
+
+   How to use in a dashboard file:
+     1. Paste the ":root  BASE TOKENS" block below, unchanged, as the first
+        thing inside the file's own :root { ... }.
+     2. Immediately after it, paste that dashboard's LEVEL ACCENT block.
+     3. Base components reference var(--accent) — never a hardcoded level color.
+
+   check-consistency.js enforces that the BASE TOKENS block is byte-identical
+   across every file. Run it before every publish.
+   ============================================================================ */
+
+/* ---- :root  BASE TOKENS  (identical in every file) ---- */
+:root {
+  /* Brand + status palette */
+  --navy: #0A2E4A;
+  --blue: #1565A0;
+  --teal: #00BCD4;
+  --teal-light: #E0F7FA;
+  --purple: #7B2D8B;
+  --purple-light: #F3E5F5;
+  --green: #27AE60;
+  --green-light: #D5F5E3;
+  --orange: #F39C12;
+  --orange-light: #FEF9E7;
+  --red: #E74C3C;
+  --red-light: #FDEDEC;
+  /* Neutrals */
+  --gray1: #F8F9FA;
+  --gray2: #E9ECEF;
+  --gray3: #ADB5BD;
+  --gray4: #6C757D;
+  --gray5: #343A40;
+  --white: #FFFFFF;
+  /* Elevation + shape */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
+  --radius: 10px;
+  /* Type scale (rem, on a 15px root) */
+  --fs-hero: 1.6rem;
+  --fs-h1: 1.35rem;
+  --fs-h2: 1.05rem;
+  --fs-body: 0.9rem;
+  --fs-small: 0.82rem;
+  --fs-tiny: 0.72rem;
+  /* Layout metrics (identical in every dashboard shell) */
+  --sidebar-w: 240px;
+  --header-h: 58px;
+  --main-pad: 1.75rem 2rem;
+  --main-max: 1180px;   /* NEW: caps line length so wide monitors render the same */
+}
+
+/* ---- BASE HTML/BODY  (identical in every file) ---- */
+html { -webkit-text-size-adjust: 100%; font-size: 15px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--gray1);
+  color: var(--gray5);
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   LEVEL ACCENTS  — paste ONE of these per file, right after the base block.
+   These are the ONLY tokens allowed to differ between dashboards.
+   Base components must reference var(--accent) / var(--accent-light) etc.
+   BANNERS: --banner-a/--banner-b drive .app-header + .page-hero (one distinct
+   gradient per dashboard: Fundamentals teal, Demo 101 blue, Demo 102 purple,
+   PO Match indigo, portal blue). Every file must define both.
+   ============================================================================ */
+
+/* portal.html — neutral navy hub */
+:root { --accent: #1565A0; --accent-light: #E7F0F8; --accent-mid: #1565A0; --accent-dark: #0A2E4A; --banner-a: #0A2E4A; --banner-b: #1565A0; }
+
+/* Accents are set to each dashboard's OWN existing dominant color so shared
+   components (e.g. battlecards) look native — not imposed new colors. L1 tracks
+   sit in the shared blue/teal brand family; only pomatch (L2) is deliberately distinct. */
+
+/* fundamentals-training.html — Level 1 · Fundamentals · BLUE accent, TEAL banner */
+:root { --accent: #1565A0; --accent-light: #E7F0F8; --accent-mid: #1976C4; --accent-dark: #0D4E7C; --banner-a: #0A2E4A; --banner-b: #00838F; }
+
+/* demo-training.html — Level 1 · Demo 101 Core AP · BLUE accent, BLUE banner */
+:root { --accent: #1565A0; --accent-light: #E7F0F8; --accent-mid: #1976C4; --accent-dark: #0D4E7C; --banner-a: #0A2E4A; --banner-b: #1565A0; }
+
+/* demo102.html — Level 1 · Demo 102 Vendor Pay · TEAL accent, PURPLE banner */
+:root { --accent: #00BCD4; --accent-light: #E0F7FA; --accent-mid: #00A5BB; --accent-dark: #00838F; --banner-a: #4A148C; --banner-b: #7B2D8B; }
+
+/* pomatch.html — Level 2 · PO Match · INDIGO accent, INDIGO banner */
+:root { --accent: #4F46E5; --accent-light: #EEF0FD; --accent-mid: #6366F1; --accent-dark: #3730A3; --banner-a: #0A2E4A; --banner-b: #3730A3; }
