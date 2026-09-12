@@ -18,6 +18,13 @@ let h = fs.readFileSync(fp, 'utf8');
 const report = [];
 const KEY = { 'fundamentals-training.html':'ottimate_fundamentals_state', 'demo-training.html':'ottimate_demo_state',
               'demo102.html':'ottimate_d102_state', 'pomatch.html':'ottimate_pomatch_state' }[path.basename(file)];
+// portal.html: the module's helpers only (ottCertStatus, ottContentStatus, profile helpers…) — it declares nothing that runs on load.
+if (path.basename(file) === 'portal.html') {
+  const S0 = '/* OTT-STATEMIGRATE:START', E0 = 'OTT-STATEMIGRATE:END */';
+  if (h.includes(S0)) { const a = h.indexOf(S0), b = h.indexOf(E0) + E0.length; h = h.slice(0, a) + mod + h.slice(b); report.push('module: replaced'); }
+  else { const i = h.indexOf('// Run on load\n'); if (i < 0) { console.error('portal anchor not found'); process.exit(3); } h = h.slice(0, i) + mod + '\n\n' + h.slice(i); report.push('module: inserted before "// Run on load"'); }
+  fs.writeFileSync(fp, h); console.log(file + ':\n  ' + report.join('\n  ')); process.exit(0);
+}
 if (!KEY) { console.error('unknown dashboard: ' + file); process.exit(2); }
 
 // ---- 1. module ----

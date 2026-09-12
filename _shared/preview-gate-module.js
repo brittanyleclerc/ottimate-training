@@ -22,9 +22,12 @@ function ottPreviewRoleOf(){
   return '';
 }
 /* The gate for stateKey if it blocks `role` (default: the current profile's role); null otherwise. */
-function ottPreviewBlocked(stateKey, role){
+function ottPreviewBlocked(stateKey, role, ignoreCert){
   var g = OTT_PREVIEW_GATES[stateKey]; if (!g || !g.roles || !g.roles.length) return null;
-  try { var own = JSON.parse(localStorage.getItem(stateKey) || 'null'); if (own && own.examPassed === true) return null; } catch(e){}
+  // already certified → not held back, UNLESS their certification predates a required content update (§13): they
+  // will have to complete the released dashboard again, so until release they are held back like everyone else in the role
+  if (!ignoreCert){ try { var own = JSON.parse(localStorage.getItem(stateKey) || 'null');
+    if (own && own.examPassed === true){ var cfg = (typeof ottContentConfig === 'function') ? ottContentConfig(stateKey) : null; if (!(cfg && cfg.policy === 'required' && String(own.certContentV || '') < cfg.version)) return null; } } catch(e){} }
   var r = (role === undefined) ? ottPreviewRoleOf() : role;
   return (r && g.roles.indexOf(r) >= 0) ? g : null;
 }

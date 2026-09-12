@@ -50,6 +50,7 @@ const SHARED_BLOCKS = [
   ['bypass-verify-module.js',   '/* OTT-BYPASSVERIFY:START', 'OTT-BYPASSVERIFY:END */'],
   ['cert-id-module.js',         '/* OTT-CERTID:START',       'OTT-CERTID:END */'],
   ['preview-gate-module.js',    '/* OTT-PREVIEWGATE:START',  'OTT-PREVIEWGATE:END */'],
+  ['renewal-module.js',         '/* OTT-RENEWAL:START',      'OTT-RENEWAL:END */'],
   ['certificate-module.js',     '/* OTT-CERTIFICATE:START',  'OTT-CERTIFICATE:END */'],
 ];
 
@@ -96,7 +97,7 @@ for (const f of FILES){
   // 8) shared modules must be byte-identical to their _shared source (dashboards only). Hand-editing a
   //    dashboard's copy is how the four files drifted on 2026-09-11 — fix the _shared file, re-run its injector.
   for (const [src, S, E] of SHARED_BLOCKS) {
-      if (f === 'portal.html' && src !== 'bypass-verify-module.js' && src !== 'cert-id-module.js' && src !== 'preview-gate-module.js') continue;
+      if (f === 'portal.html' && src !== 'bypass-verify-module.js' && src !== 'cert-id-module.js' && src !== 'preview-gate-module.js' && src !== 'state-migration-module.js') continue;
       const canon = fs.readFileSync(path.join(__dirname, src), 'utf8').trim();
       const n = h.split(S).length - 1;
       if (n !== 1) { issues.push(`${src}: expected exactly 1 ${S} block, found ${n}`); continue; }

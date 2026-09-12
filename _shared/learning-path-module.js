@@ -74,8 +74,11 @@ function renderLearningPath(mountId){
     // or that dashboard's own record carries a confirmed bypass. Never link into a gate screen.
     // Temporary preview gate (§12): a track held back for this rep's role shows "In final review" and no links.
     const preview = (!isCur && typeof ottPreviewBlocked === 'function') ? ottPreviewBlocked(t.certKey) : null;
+    const content = (typeof ottContentStatus === 'function') ? ottContentStatus(t.certKey) : { stale:false, renewal:null };
     const open = !preview && (isCur || !t.requires || t.requires.every(function(k){ return ottCertOrAttested(k); }) || !!(st && st.bypassed === true));
-    const status = preview ? '🔍 In final review — coming soon' : passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : ''))
+    const status = preview ? '🔍 In final review — coming soon'
+      : content.renewal ? ('🔁 Renewal in progress — previously certified' + (content.renewal.priorCertDate ? ' ' + content.renewal.priorCertDate : '') + '; complete the updated dashboard to renew')
+      : passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : '') + (content.stale ? ' · 🔁 content updated since — retake ' + (content.policy === 'required' ? 'required' : 'recommended') : ''))
       : attested ? ('<span title="' + ottAttestedTitle(cert) + '">' + (cert.verified ? '✅ Completed elsewhere — verified by Sales Enablement' : '☑️ Completed elsewhere (self-attested · via ' + cert.viaLabel + ' bypass' + (cert.atLabel ? ' ' + cert.atLabel : '') + ')') + '</span>')
       : (isCur ? '▶ You are training here now' : (t.level==='Level 2' ? '🔒 Unlocks after Level 1' : '⬜ Not started'));
     const cls = passed ? 'lp-done' : (attested ? (cert.verified ? 'lp-verified' : 'lp-attested') : (isCur ? 'lp-cur' : 'lp-todo'));

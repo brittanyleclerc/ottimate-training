@@ -623,9 +623,54 @@ function ottMigrateState(key){
       if (sib && sib.name === s.name && Array.isArray(sib.verticals) && sib.verticals.length){ s.verticals = sib.verticals.slice(); changed = true; break; }
     }
   }
+  // Required renewal (§13): certified before the current content version and released to this rep → archive + reset now.
+  if (ottRenewalDue(key, s) && ottBeginRenewal(key, s)) changed = true;
   if (s.schemaV !== OTT_SCHEMA_V){ s.schemaV = OTT_SCHEMA_V; changed = true; }
   if (changed){ try { localStorage.setItem(key, JSON.stringify(s)); } catch(e){} }
   return s;
+}
+/* ── Content versions & certification renewal (CONSISTENCY-GUIDE §13) ──
+   When a dashboard's graded content (quizzes / final exam) changes materially, bump its version here. A rep whose
+   certification predates the version is "stale":
+     policy 'optional' → the portal / dashboard nudge them to retake; nothing changes for them otherwise
+     policy 'required' → RENEWAL: the next time they open that dashboard, their prior certification is archived
+                          (priorCerts) and progress is reset so they complete the updated dashboard again. The portal
+                          shows "Renewal required" (never "Not started") and the Learning Path / gates still honour
+                          the prior certification while renewal is in progress.
+   A required renewal is deferred while the dashboard is held back for that rep's role (preview gate §12).
+   certContentV is stamped on the record when an exam is passed (ottSafeSetState); records certified before
+   versioning existed have none and count as older than any version. Records without a config entry are never stale.
+   Adding an entry here is how a "reset this dashboard for everyone certified before <date>" is done; per-user resets
+   would need the verification feed (§10) — not built. */
+var OTT_CONTENT_VERSIONS = {
+  ottimate_pomatch_state: { version: '2026-09-11', policy: 'required', note: 'The quizzes and final exam for Demo 201 — PO Match were updated on September 11, 2026.' }
+};
+var OTT_EXAM_TOTAL_OVERRIDE = { ottimate_d102_state: 95 };   // Demo 102's exam is scored in points, not questions
+function ottContentConfig(key){ return OTT_CONTENT_VERSIONS[key] || null; }
+/* { version, policy, stale, renewal, prior, deferred } — stale: certified before the current content version. */
+function ottContentStatus(key, rec){
+  var cfg = ottContentConfig(key); var s = (rec === undefined) ? ottReadState(key) : rec;
+  var out = { version: cfg ? cfg.version : '', policy: cfg ? cfg.policy : '', note: cfg ? cfg.note : '', stale: false, renewal: null, prior: null, deferred: false };
+  if (!s || typeof s !== 'object') return out;
+  out.renewal = s.renewal || null;
+  out.prior = (Array.isArray(s.priorCerts) && s.priorCerts.length) ? s.priorCerts[s.priorCerts.length - 1] : null;
+  if (cfg && s.examPassed === true && String(s.certContentV || '') < cfg.version) out.stale = true;
+  // a required renewal waits until the dashboard is actually released to this rep (preview gate)
+  if (out.stale && cfg.policy === 'required' && typeof ottPreviewBlocked === 'function' && ottPreviewBlocked(key, undefined, true)) out.deferred = true;
+  return out;
+}
+function ottRenewalDue(key, rec){ var c = ottContentStatus(key, rec); return c.stale && c.policy === 'required' && !c.deferred; }
+/* Archive the prior certification and reset progress on the record (in place). Returns true if it did. */
+function ottBeginRenewal(key, s){
+  if (!s || s.examPassed !== true) return false;
+  var cfg = ottContentConfig(key) || {};
+  s.priorCerts = (Array.isArray(s.priorCerts) ? s.priorCerts : []).concat([{ certDate: s.certDate || '', examScore: s.examScore == null ? null : s.examScore, examTotal: s.examTotal || null,
+    certVerticals: Array.isArray(s.certVerticals) ? s.certVerticals.slice() : [], contentV: s.certContentV || '', archivedAt: Date.now() }]);
+  s.renewal = { startedAt: Date.now(), fromV: s.certContentV || '', toV: cfg.version || '', priorCertDate: s.certDate || '' };
+  s.examPassed = false; s.examScore = null; s.examCertified = false; s.examSubmitted = false; s.examAnswers = {};
+  s.modulesDone = []; s.quizScores = {}; s.quizState = {}; s.iqAnswers = {}; s.iqSubmitted = {}; s.certVerticals = [];
+  delete s.certContentV; delete s.examTotal; delete s.m3Verticals; delete s.m3Stale;
+  return true;
 }
 /* Cert guard for saveState(): a certified record (examPassed:true) can never be downgraded
    by an ordinary save — e.g. a failed restore followed by the cross-dashboard profile
@@ -637,9 +682,15 @@ function ottSafeSetState(key, obj){
   try {
     var stored = null; try { stored = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
     // carry a persisted prerequisite bypass (and a not-yet-sent bypass notification) forward — dashboards don't put them in their payloads
-    if (stored && obj) ['bypassed','bypassedAt','bypassNotifyPending','bypassId','bypassVerified','bypassVerifiedAt','bypassRejected','bypassRejectedAt','bypassRejectedAck'].forEach(function(f){
+    if (stored && obj) ['bypassed','bypassedAt','bypassNotifyPending','bypassId','bypassVerified','bypassVerifiedAt','bypassRejected','bypassRejectedAt','bypassRejectedAck','priorCerts','renewal','certContentV','examTotal'].forEach(function(f){
       if (stored[f] !== undefined && obj[f] === undefined) obj[f] = stored[f];
     });
+    // exam just passed (§13): stamp the content version it was passed under + the total it was scored against; a renewal in progress completes
+    if (obj && obj.examPassed === true && !(stored && stored.examPassed === true)){
+      var cfgV = ottContentConfig(key); obj.certContentV = cfgV ? cfgV.version : (obj.certContentV || 'unversioned');
+      if (!obj.examTotal) obj.examTotal = OTT_EXAM_TOTAL_OVERRIDE[key] || ((typeof EXAM_QUESTIONS !== 'undefined' && EXAM_QUESTIONS.length) || null);
+      if (obj.renewal) delete obj.renewal;
+    }
     if (stored && stored.examPassed === true && obj && obj.examPassed !== true && !window.__ottAllowCertReset){
       var keep = Object.assign({}, stored);
       ['name','role','verticals'].forEach(function(f){ if (obj[f] !== undefined) keep[f] = obj[f]; });
@@ -665,7 +716,7 @@ function ottSafeSetState(key, obj){
        stray profile can never skip the check. "Not you? / Reset" removes the record → gate returns. */
 function ottReadState(key){ try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){ return null; } }
 function ottGateAllows(ownKey, prereqKeys){
-  var met = prereqKeys.every(function(k){ var s = ottReadState(k); return !!(s && s.examPassed === true); });
+  var met = prereqKeys.every(function(k){ var s = ottReadState(k); return !!(s && (s.examPassed === true || (s.renewal && Array.isArray(s.priorCerts) && s.priorCerts.length))); });
   if (met) return true;
   var own = ottReadState(ownKey);
   return !!(own && own.bypassed === true);
@@ -867,6 +918,7 @@ function init(){
     if (saved.examPassed) APP.examPassed = saved.examPassed;
     if (saved.examScore !== undefined && saved.examScore !== null) APP.examScore = saved.examScore;
     if (saved.examCertified) APP.examCertified = saved.examCertified;
+    if (saved.examTotal) APP.examTotal = saved.examTotal;
     if (saved.name && saved.role){
       APP.name = saved.name; APP.email = saved.email || ''; APP.role = saved.role;
       if (Array.isArray(saved.verticals)) APP.verticals = saved.verticals;
@@ -1118,9 +1170,12 @@ function ottPreviewRoleOf(){
   return '';
 }
 /* The gate for stateKey if it blocks `role` (default: the current profile's role); null otherwise. */
-function ottPreviewBlocked(stateKey, role){
+function ottPreviewBlocked(stateKey, role, ignoreCert){
   var g = OTT_PREVIEW_GATES[stateKey]; if (!g || !g.roles || !g.roles.length) return null;
-  try { var own = JSON.parse(localStorage.getItem(stateKey) || 'null'); if (own && own.examPassed === true) return null; } catch(e){}
+  // already certified → not held back, UNLESS their certification predates a required content update (§13): they
+  // will have to complete the released dashboard again, so until release they are held back like everyone else in the role
+  if (!ignoreCert){ try { var own = JSON.parse(localStorage.getItem(stateKey) || 'null');
+    if (own && own.examPassed === true){ var cfg = (typeof ottContentConfig === 'function') ? ottContentConfig(stateKey) : null; if (!(cfg && cfg.policy === 'required' && String(own.certContentV || '') < cfg.version)) return null; } } catch(e){} }
   var r = (role === undefined) ? ottPreviewRoleOf() : role;
   return (r && g.roles.indexOf(r) >= 0) ? g : null;
 }
@@ -1159,6 +1214,39 @@ function ottPreviewScreen(g){
   document.body.appendChild(s);
 }
 /* OTT-PREVIEWGATE:END */
+
+/* OTT-RENEWAL:START — certification renewal notice (CONSISTENCY-GUIDE §13). Identical in every dashboard.
+   Injected by inject-renewal.js. The core (content versions, stale detection, archiving + reset at load) lives in
+   state-migration-module.js; this only SHOWS the rep what is going on, inside the shell, once the session restores:
+     renewal in progress → amber banner "🔁 Renewal in progress — … was updated on <date>. Complete the updated modules and
+                           pass the final exam to renew your certification (previously earned <date>)."
+     optional retake     → same banner, softer wording, dismissible for the session. */
+var OTT_RENEWAL_CSS = ''
+  + '#ott-renewal-banner{flex-shrink:0;background:linear-gradient(90deg,#FEF3C7,#FFFBEB);border-bottom:1px solid #F59E0B;color:#7D4C00;padding:0.65rem 1.25rem;text-align:center;font-size:0.86rem;font-weight:600;line-height:1.45;display:flex;align-items:center;justify-content:center;gap:0.8rem;flex-wrap:wrap;}'
+  + '#ott-renewal-banner button{background:transparent;color:#7D4C00;border:1px solid #F59E0B;border-radius:6px;padding:0.3rem 0.7rem;font-weight:700;font-size:0.8rem;font-family:inherit;cursor:pointer;}'
+  + '@media print{#ott-renewal-banner{display:none !important;}}';
+function ottRenewalOwnKey(){ var f = (location.pathname.match(/([^/]+)\.html/) || [])[1] || ''; return { 'fundamentals-training':'ottimate_fundamentals_state','demo-training':'ottimate_demo_state','demo102':'ottimate_d102_state','pomatch':'ottimate_pomatch_state' }[f] || ''; }
+function ottRenewalText(key){
+  if (typeof ottContentStatus !== 'function') return '';
+  var c = ottContentStatus(key); var esc = function(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  if (c.renewal) return '🔁 <strong>Renewal in progress.</strong> ' + esc(c.note || 'This training was updated.') + ' Complete the updated modules and pass the final exam to renew your certification' + (c.renewal.priorCertDate ? ' (previously earned ' + esc(c.renewal.priorCertDate) + ')' : '') + '.';
+  if (c.stale && c.policy === 'optional') return '🔁 ' + esc(c.note || 'This training was updated since you certified.') + ' Your certification stands — retaking the updated modules and exam is recommended.';
+  return '';
+}
+function ottRenewalBanner(){
+  var key = ottRenewalOwnKey(); if (!key) return;
+  var txt = ottRenewalText(key); var old = document.getElementById('ott-renewal-banner');
+  if (!txt){ if (old) old.remove(); return; }
+  if (old){ old.querySelector('span').innerHTML = txt; return; }
+  if (sessionStorage.getItem('ott-renewal-dismissed') === key && ottContentStatus(key).policy === 'optional') return;
+  if (!document.getElementById('ott-renewal-css')){ var st = document.createElement('style'); st.id = 'ott-renewal-css'; st.textContent = OTT_RENEWAL_CSS; document.head.appendChild(st); }
+  var shell = document.getElementById('app-shell'); var body = shell && shell.querySelector('.app-body'); if (!body) return;
+  var n = document.createElement('div'); n.id = 'ott-renewal-banner';
+  n.innerHTML = '<span>' + txt + '</span>' + (ottContentStatus(key).renewal ? '' : '<button type="button" onclick="sessionStorage.setItem(\'ott-renewal-dismissed\',\'' + key + '\');this.parentNode.remove()">Later</button>');
+  body.insertAdjacentElement('beforebegin', n);
+}
+(function(){ var tries = 0; var iv = setInterval(function(){ var shell = document.getElementById('app-shell'); if (shell && shell.classList.contains('active')){ clearInterval(iv); ottRenewalBanner(); } else if (++tries > 200) clearInterval(iv); }, 150); })();
+/* OTT-RENEWAL:END */
 
 // ══ WELCOME / START ══
 function toggleRole(el, role){ document.querySelectorAll('.select-grid .select-card').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); APP.role = role; }
@@ -1382,6 +1470,11 @@ function retakeInlineQuiz(moduleNum){
 function restoreQuizState(moduleNum){
   if (!IQ_SUBMITTED[moduleNum]) return;
   const questions = QUIZ_DATA[moduleNum]; if (!questions) return;
+  // Content updated since this attempt (§13): show the recorded result only — never paint old answer positions onto new questions.
+  if (ottContentStatus('ottimate_pomatch_state').stale){ const sc0 = APP.quizScores[moduleNum]; const r0 = document.getElementById(`iq-result-${moduleNum}`);
+    questions.forEach((q,qi)=>{ for (let oi=0;oi<q.options.length;oi++){ const el = document.getElementById(`iqopt-${moduleNum}-${qi}-${oi}`); if (el) el.style.pointerEvents='none'; } });
+    if (r0){ r0.style.display='block'; r0.innerHTML = '<div class="info-box tip" style="margin-top:1rem;"><div class="info-box-title">📝 Questions updated since your attempt</div>Your recorded result' + (sc0 ? ' — ' + sc0.score + '/' + sc0.total : '') + ' — stands; individual answers can’t be shown against the updated questions.</div>'; }
+    const sb0 = document.getElementById(`iq-submit-${moduleNum}`); if (sb0) sb0.style.display='none'; return; }
   const answers = IQ_ANSWERS[moduleNum] || {};
   questions.forEach((q,qi)=>{ for (let oi=0;oi<q.options.length;oi++){ const el = document.getElementById(`iqopt-${moduleNum}-${qi}-${oi}`); if (!el) continue; el.style.pointerEvents='none'; if (oi===q.correct) el.classList.add('correct-ans'); else if (oi===answers[qi] && answers[qi]!==q.correct) el.classList.add('wrong-ans'); } });
   const sc = APP.quizScores[moduleNum];
@@ -1991,8 +2084,11 @@ function renderLearningPath(mountId){
     // or that dashboard's own record carries a confirmed bypass. Never link into a gate screen.
     // Temporary preview gate (§12): a track held back for this rep's role shows "In final review" and no links.
     const preview = (!isCur && typeof ottPreviewBlocked === 'function') ? ottPreviewBlocked(t.certKey) : null;
+    const content = (typeof ottContentStatus === 'function') ? ottContentStatus(t.certKey) : { stale:false, renewal:null };
     const open = !preview && (isCur || !t.requires || t.requires.every(function(k){ return ottCertOrAttested(k); }) || !!(st && st.bypassed === true));
-    const status = preview ? '🔍 In final review — coming soon' : passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : ''))
+    const status = preview ? '🔍 In final review — coming soon'
+      : content.renewal ? ('🔁 Renewal in progress — previously certified' + (content.renewal.priorCertDate ? ' ' + content.renewal.priorCertDate : '') + '; complete the updated dashboard to renew')
+      : passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : '') + (content.stale ? ' · 🔁 content updated since — retake ' + (content.policy === 'required' ? 'required' : 'recommended') : ''))
       : attested ? ('<span title="' + ottAttestedTitle(cert) + '">' + (cert.verified ? '✅ Completed elsewhere — verified by Sales Enablement' : '☑️ Completed elsewhere (self-attested · via ' + cert.viaLabel + ' bypass' + (cert.atLabel ? ' ' + cert.atLabel : '') + ')') + '</span>')
       : (isCur ? '▶ You are training here now' : (t.level==='Level 2' ? '🔒 Unlocks after Level 1' : '⬜ Not started'));
     const cls = passed ? 'lp-done' : (attested ? (cert.verified ? 'lp-verified' : 'lp-attested') : (isCur ? 'lp-cur' : 'lp-todo'));
@@ -2819,8 +2915,10 @@ function restoreExamState(){
   if (APP.examCertified){
     document.getElementById('exam-submit-btn').style.display='none';
     const res = document.getElementById('exam-result'); res.style.display='block';
-    const pct = APP.examScore!=null ? Math.round((APP.examScore/EXAM_QUESTIONS.length)*100) : PASSING_PCT;
-    res.innerHTML = `<div class="info-box win"><div class="info-box-title">✅ Already Certified — ${APP.examScore}/${EXAM_QUESTIONS.length} (${pct}%)</div>You've passed this exam.</div><div class="text-center mt-2"><button class="btn btn-primary" onclick="showCertificate()">🏆 View Certificate</button></div>`;
+    const total = APP.examTotal || EXAM_QUESTIONS.length;   // scored against the bank at the time (§13)
+    const pct = APP.examScore!=null ? Math.round((APP.examScore/total)*100) : PASSING_PCT;
+    const stale = ottContentStatus('ottimate_pomatch_state').stale ? '<div style="font-weight:400;margin-top:0.35rem;">📝 The exam was updated since you passed it — this is your recorded result.</div>' : '';
+    res.innerHTML = `<div class="info-box win"><div class="info-box-title">✅ Already Certified — ${APP.examScore}/${total} (${pct}%)</div>${stale}You've passed this exam.</div><div class="text-center mt-2"><button class="btn btn-primary" onclick="showCertificate()">🏆 View Certificate</button></div>`;
   }
 }
 
