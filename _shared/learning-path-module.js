@@ -30,6 +30,10 @@ const LEARNING_PATH_CSS = `
 #lp-mount .lp-list{display:flex;flex-direction:column;gap:0.75rem;}
 #lp-mount .lp-item{display:flex;gap:0.85rem;border:1.5px solid var(--gray2);border-radius:10px;padding:0.9rem 1rem;background:var(--white);transition:all .15s;}
 #lp-mount .lp-item.lp-done{border-color:var(--accent);background:var(--accent-light);}
+#lp-mount .lp-item.lp-attested{border-color:var(--orange);background:var(--orange-light);}
+#lp-mount .lp-attested .lp-status{color:#7D4C00;}
+#lp-mount .lp-item.lp-verified{border-color:var(--green);background:var(--green-light);}
+#lp-mount .lp-verified .lp-status{color:#1a6e3c;}
 #lp-mount .lp-item.lp-cur{border-color:var(--accent);border-width:2px;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
 #lp-mount .lp-badge{font-size:1.5rem;line-height:1;flex-shrink:0;}
 #lp-mount .lp-head{display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.2rem;}
@@ -56,22 +60,26 @@ function renderLearningPath(mountId){
   if(!document.getElementById('ott-lp-css')){ const st=document.createElement('style'); st.id='ott-lp-css'; st.textContent=LEARNING_PATH_CSS; document.head.appendChild(st); }
   const file = (location.pathname.match(/([^/]+)\.html/)||[])[1] || '';
   const CUR = {'fundamentals-training':'fundamentals','demo-training':'demo101','demo102':'demo102','pomatch':'pomatch'}[file];
-  let earned = 0;
+  let earned = 0, attestedN = 0;
   const rows = LEARNING_PATH.map(function(t){
     let st=null; try{ st=JSON.parse(localStorage.getItem(t.certKey)||'null'); }catch(e){}
-    const passed = !!(st && st.examPassed); if(passed) earned++;
+    // Real cert, or a self-attested prerequisite (derived from a confirmed bypass — CONSISTENCY-GUIDE §6).
+    // Attested unlocks the same content a cert does, but is labelled honestly and is not counted as earned.
+    const cert = ottCertStatus(t.certKey);
+    const passed = cert.passed; if(passed) earned++;
+    const attested = cert.attested; if(attested) attestedN++;
+    const unlocked = passed || attested;
     const isCur = (t.key === CUR);
-    // Same rule the target dashboard enforces (ottGateAllows): every prerequisite certified, or that
-    // dashboard's own record carries a confirmed bypass. Never link into a gate screen.
-    const open = isCur || !t.requires || t.requires.every(function(k){
-      let p=null; try{ p=JSON.parse(localStorage.getItem(k)||'null'); }catch(e){}
-      return !!(p && p.examPassed === true);
-    }) || !!(st && st.bypassed === true);
-    const status = passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : '')) : (isCur ? '▶ You are training here now' : (t.level==='Level 2' ? '🔒 Unlocks after Level 1' : '⬜ Not started'));
-    const cls = passed ? 'lp-done' : (isCur ? 'lp-cur' : 'lp-todo');
+    // Same rule the target dashboard enforces (ottGateAllows): every prerequisite certified (or self-attested),
+    // or that dashboard's own record carries a confirmed bypass. Never link into a gate screen.
+    const open = isCur || !t.requires || t.requires.every(function(k){ return ottCertOrAttested(k); }) || !!(st && st.bypassed === true);
+    const status = passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : ''))
+      : attested ? ('<span title="' + ottAttestedTitle(cert) + '">' + (cert.verified ? '✅ Completed elsewhere — verified by Sales Enablement' : '☑️ Completed elsewhere (self-attested · via ' + cert.viaLabel + ' bypass' + (cert.atLabel ? ' ' + cert.atLabel : '') + ')') + '</span>')
+      : (isCur ? '▶ You are training here now' : (t.level==='Level 2' ? '🔒 Unlocks after Level 1' : '⬜ Not started'));
+    const cls = passed ? 'lp-done' : (attested ? (cert.verified ? 'lp-verified' : 'lp-attested') : (isCur ? 'lp-cur' : 'lp-todo'));
     const shortName = t.name.split('—')[0].trim();
     return '<div class="lp-item ' + cls + '">'
-      + '<div class="lp-badge">' + (passed ? '🏆' : (t.level==='Level 2' ? '🔒' : '📘')) + '</div>'
+      + '<div class="lp-badge">' + (passed ? '🏆' : (attested ? (cert.verified ? '✅' : '☑️') : (t.level==='Level 2' ? '🔒' : '📘'))) + '</div>'
       + '<div class="lp-body" style="flex:1;">'
       +   '<div class="lp-head"><span class="lp-name">' + t.name + '</span><span class="lp-level">' + t.level + '</span>' + (isCur ? '<span class="lp-here">You are here</span>' : '') + '</div>'
       +   '<div class="lp-status">' + status + '</div>'
@@ -81,9 +89,9 @@ function renderLearningPath(mountId){
             if (!open) return '<span class="lp-asset off" title="Unlocks after ' + t.requiresLabel + '">• ' + a.l + '</span>';
             // same dashboard: open the tab in place; other dashboard: navigate with a #ref= hash the module handles on load
             var link = isCur ? ('href="#" onclick="ottOpenRefTab(&quot;' + a.t + '&quot;);return false;"') : ('href="' + t.href + '#ref=' + a.t + '"');
-            return '<a class="lp-asset ' + (passed?'on':'') + '" ' + link + ' title="Open ' + a.l + '">' + (passed?'✓':'•') + ' ' + a.l + '</a>';
+            return '<a class="lp-asset ' + (unlocked?'on':'') + '" ' + link + ' title="Open ' + a.l + '">' + (unlocked?'✓':'•') + ' ' + a.l + '</a>';
           }).join('') + '</div>'
-      +   (passed ? '<div class="lp-playbook"><div class="lp-pb-q">🔑 <strong>Power question:</strong> ' + t.powerQuestion + '</div><div class="lp-pb-k">💡 ' + t.keyFact + '</div></div>' : '')
+      +   (unlocked ? '<div class="lp-playbook"><div class="lp-pb-q">🔑 <strong>Power question:</strong> ' + t.powerQuestion + '</div><div class="lp-pb-k">💡 ' + t.keyFact + '</div></div>' : '')
       +   (isCur ? ''
             : (open ? '<a class="lp-link" href="' + t.href + '#ref">' + (passed ? 'Open ' : 'Open ') + shortName + ' Reference Materials →</a>'
                     : '<span class="lp-locked">🔒 Unlocks after ' + t.requiresLabel + ' certification</span>'))
@@ -91,7 +99,7 @@ function renderLearningPath(mountId){
   }).join('');
   const pct = Math.round(earned / LEARNING_PATH.length * 100);
   mount.innerHTML = '<div class="card"><div class="card-title">🗺️ Your Learning Path</div>'
-    + '<p class="lp-intro">Your reference library grows as you complete each certification — <strong>' + earned + ' of ' + LEARNING_PATH.length + '</strong> earned. Completed tracks show a 🏆. Links open that track&rsquo;s Reference Materials; locked tracks unlock when you certify their prerequisites.</p>'
+    + '<p class="lp-intro">Your reference library grows as you complete each certification — <strong>' + earned + ' of ' + LEARNING_PATH.length + '</strong> earned' + (attestedN ? ' · ' + attestedN + ' self-attested (completed elsewhere)' : '') + '. Completed tracks show a 🏆. Links open that track&rsquo;s Reference Materials; locked tracks unlock when you certify their prerequisites.</p>'
     + '<div class="lp-progress"><div class="lp-progress-fill" style="width:' + pct + '%"></div></div>'
     + '<div class="lp-list">' + rows + '</div></div>';
 }

@@ -1,0 +1,4 @@
+{
+  "_comment": "Fallback bypass-verification feed (CONSISTENCY-GUIDE §10). Used only when OTT_BYPASS_FEED_URL is blank. Rows: { \"id\": \"<bypassId from the notification>\", \"status\": \"approved\" | \"rejected\" }. Prefer the published Google Sheet feed; edit this file only as a manual fallback.",
+  "rows": []
+}

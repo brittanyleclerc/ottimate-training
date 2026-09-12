@@ -4,6 +4,9 @@
      2. routes the dashboard's own state load through ottMigrateState(key)
      3. adds `schemaV: OTT_SCHEMA_V` to the saveState payload
      4. routes the saveState write through ottSafeSetState (cert guard)
+     5. "Not you? / Reset" clears every dashboard + the shared profile
+     6. fundamentals: persists m3Stale
+     7. session restore brings APP.email back from the record
    Re-runnable. Exits non-zero if an anchor is not found. */
 const fs = require('fs');
 const path = require('path');
@@ -107,9 +110,28 @@ for (const old of ['This will clear all progress and return to the welcome scree
 // ---- 6. fundamentals only: persist m3Stale (Module 3 completed under different verticals) ----
 if (KEY === 'ottimate_fundamentals_state') {
   const payloadLine = '      schemaV: OTT_SCHEMA_V,\n';
-  if (!h.includes('m3Stale: APP.m3Stale')) { h = h.replace(payloadLine, () => payloadLine + '      m3Stale: !!APP.m3Stale,\n'); report.push('m3Stale: added to payload'); }
+  if (!h.includes('m3Stale: !!APP.m3Stale')) { h = h.replace(payloadLine, () => payloadLine + '      m3Stale: !!APP.m3Stale,\n'); report.push('m3Stale: added to payload'); }
   const restoreAnchor = '      if (s.quizScores) APP.quizScores = s.quizScores;\n';
   if (!h.includes('APP.m3Stale = true')) { if (!h.includes(restoreAnchor)) { console.error('restore anchor not found'); process.exit(8); } h = h.replace(restoreAnchor, () => restoreAnchor + '      if (s.m3Stale) APP.m3Stale = true;\n'); report.push('m3Stale: restored on load'); }
+}
+
+// ---- 7. session restore must bring APP.email back (added 2026-09-11) ----
+// Without this, a reload leaves APP.email = '' and the next saveState() writes the blank back over the
+// record — the email then only survives in ottimate_profile and the dashboards' editor shows it empty.
+{
+  const restores = [
+    // fundamentals / demo-training
+    { from: '        APP.name = s.name;\n        APP.role = s.role;\n', to: "        APP.name = s.name;\n        APP.email = s.email || '';\n        APP.role = s.role;\n" },
+    // pomatch
+    { from: '      APP.name = saved.name; APP.role = saved.role;\n', to: "      APP.name = saved.name; APP.email = saved.email || ''; APP.role = saved.role;\n" },
+  ];
+  if (/APP\.email = (s|saved)\.email/.test(h)) report.push('restore: APP.email already restored on load');
+  else {
+    let done = false;
+    for (const r of restores) { const i = h.indexOf(r.from); if (i >= 0) { if (h.indexOf(r.from, i + 1) >= 0) { console.error('restore anchor not unique'); process.exit(9); } h = h.slice(0, i) + r.to + h.slice(i + r.from.length); done = true; break; } }
+    if (!done) { console.error('restore anchor for APP.email not found'); process.exit(9); }
+    report.push('restore: APP.email now restored on load');
+  }
 }
 
 fs.writeFileSync(fp, h);

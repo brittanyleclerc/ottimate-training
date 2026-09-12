@@ -137,6 +137,12 @@ body {
 }
 .level-badge.coming { background: var(--gray3); }
 
+/* Per-level progress (under each level header) */
+.level-progress { display: flex; align-items: center; gap: 0.75rem; margin: -0.35rem 0 1rem; font-size: 0.75rem; color: var(--gray4); }
+.level-progress-bar { flex: 1; max-width: 340px; height: 6px; background: var(--gray2); border-radius: 3px; overflow: hidden; }
+.level-progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--teal)); border-radius: 3px; transition: width 0.6s ease; }
+.level-progress-label { white-space: nowrap; }
+
 /* ── CARD GRID ── */
 .card-grid {
   display: grid;
@@ -240,6 +246,14 @@ body {
 .status-badge.not-started { background: var(--gray1); color: var(--gray4); }
 .status-badge.in-progress { background: var(--orange-light); color: #a06000; }
 .status-badge.certified { background: var(--green-light); color: #1a6e3c; }
+.status-badge.attested { background: var(--orange-light); color: #7D4C00; border: 1px solid var(--orange); cursor: help; white-space: nowrap; }
+.status-badge.verified { background: var(--green-light); color: #1a6e3c; border: 1px solid var(--green); cursor: help; white-space: nowrap; }
+.track-card.verified::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--green), var(--teal)); }
+#bypass-rejected-banner { background: #FEF9E7; border-bottom: 1px solid var(--orange); color: #7D4C00; padding: 0.65rem 1.25rem; text-align: center; font-size: 0.86rem; font-weight: 600; line-height: 1.4; display: none; align-items: center; justify-content: center; gap: 0.8rem; flex-wrap: wrap; }
+#bypass-rejected-banner.on { display: flex; }
+#bypass-rejected-banner button { background: transparent; color: #7D4C00; border: 1px solid var(--orange); border-radius: 6px; padding: 0.3rem 0.7rem; font-weight: 700; font-size: 0.8rem; font-family: inherit; cursor: pointer; }
+.track-card.attested::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--orange), #F7C948); }
+.bypass-note { font-size: 0.72rem; color: #7D4C00; background: var(--orange-light); border: 1px solid var(--orange); border-radius: 6px; padding: 0.3rem 0.55rem; margin-top: 0.5rem; line-height: 1.4; }
 .status-badge.locked-badge { background: var(--gray1); color: var(--gray3); }
 .status-badge.coming-badge { background: var(--gray1); color: var(--gray3); }
 
@@ -307,6 +321,35 @@ body {
   padding: 0.2rem 0.55rem;
 }
 
+/* ── EMAIL BANNER (same look as the dashboards' shared banner, email-banner-module.js) ── */
+#profile-email-banner { background: linear-gradient(90deg,#fff3cd,#fefcf2); border-bottom: 1px solid #f0c36d; color: #7d4c00; padding: 0.65rem 1.25rem; text-align: center; font-size: 0.86rem; font-weight: 600; line-height: 1.4; display: none; align-items: center; justify-content: center; gap: 0.8rem; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; }
+#profile-email-banner.on { display: flex; }
+#profile-email-banner button { background: var(--navy); color: #fff; border: none; border-radius: 6px; padding: 0.35rem 0.8rem; font-weight: 700; font-size: 0.82rem; font-family: inherit; cursor: pointer; white-space: nowrap; }
+#profile-email-banner button:hover { background: var(--accent); }
+
+/* ── SHARED PROFILE MODAL (✎ Edit Your Profile) ── */
+.pe-overlay { position: fixed; inset: 0; background: rgba(10,46,74,0.6); display: flex; align-items: center; justify-content: center; padding: 1.25rem; z-index: 9999; }
+.pe-modal { width: min(600px,100%); max-height: calc(100vh - 2.5rem); overflow-y: auto; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 1.5rem 1.5rem 1.1rem; }
+.pe-title { font-size: 1.2rem; font-weight: 800; color: var(--navy); margin-bottom: 0.2rem; }
+.pe-sub { font-size: 0.84rem; color: var(--gray4); margin-bottom: 1rem; }
+.pe-label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--navy); letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 0.5rem; }
+.pe-label small { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.pe-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem 1rem; margin-bottom: 1.1rem; }
+.pe-input { display: block; width: 100%; padding: 0.6rem 0.8rem; border: 2px solid var(--gray2); border-radius: 8px; font-size: 0.9rem; font-family: inherit; color: var(--gray5); background: var(--white); transition: border-color 0.18s; }
+.pe-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.pe-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-bottom: 1.1rem; }
+.pe-card { border: 2px solid var(--gray2); border-radius: 8px; padding: 0.7rem 1rem; cursor: pointer; transition: all 0.18s; font-size: 0.88rem; font-family: inherit; font-weight: 500; text-align: center; user-select: none; background: var(--white); color: var(--gray5); }
+.pe-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.pe-card.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 700; }
+.pe-note { display: none; font-size: 0.8rem; font-weight: 600; color: #B45309; background: #FEF3C7; border: 1px solid #FBBF24; border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 1rem; }
+.pe-note.on { display: block; }
+.pe-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+.pe-btn { border-radius: 8px; padding: 0.55rem 1.1rem; font-weight: 700; font-family: inherit; font-size: 0.88rem; cursor: pointer; }
+.pe-btn-secondary { background: var(--white); color: var(--accent); border: 2px solid var(--accent); }
+.pe-btn-primary { background: linear-gradient(135deg, var(--blue), var(--teal)); color: var(--white); border: none; }
+.pe-hint { font-size: 0.78rem; color: var(--gray4); margin-top: 0.8rem; line-height: 1.45; }
+@media (max-width: 480px) { .pe-grid { grid-template-columns: 1fr; } }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 600px) {
   .portal-header { padding: 1.75rem 1rem 1.5rem; }
@@ -321,10 +364,19 @@ body {
   <div class="portal-logo">Otti<span>mate</span></div>
   <div class="portal-tagline">Sales Training &amp; Certification Portal</div>
   <div class="portal-greeting" id="portal-greeting">Welcome back</div>
+</div>
+
+<div id="bypass-rejected-banner" hidden><span id="bypass-rejected-text"></span><button type="button" onclick="dismissBypassRejected()">Got it</button></div>
+<div id="profile-email-banner" hidden>
+  <span>📧 Please add your work email to your profile so we can notify you about future training updates and release reminders.</span>
+  <button type="button" onclick="openProfileEmailPrompt()">Add email</button>
+</div>
+
+<div class="portal-body">
   <div class="portal-progress-bar">
     <div class="portal-progress-fill" id="portal-progress-fill" style="width:0%"></div>
   </div>
-  <div class="portal-progress-label" id="portal-progress-label">0 of 2 Level 1 certifications earned</div>
+  <div class="portal-progress-label" id="portal-progress-label">Overall progress</div>
 </div>
 
 <!-- BODY -->
@@ -339,6 +391,7 @@ body {
   <!-- LEVEL 1 -->
   <div class="level-section">
     <div class="level-label"><span class="level-badge">Level 1</span><span>Foundation Tracks</span></div>
+    <div class="level-progress"><div class="level-progress-bar"><div class="level-progress-fill" id="lvl1-fill" style="width:0%"></div></div><div class="level-progress-label" id="lvl1-label"></div></div>
     <div class="card-grid">
 
       <!-- Fundamentals -->
@@ -413,6 +466,7 @@ body {
   <!-- LEVEL 2 -->
   <div class="level-section">
     <div class="level-label"><span class="level-badge">Level 2</span><span>Advanced Modules</span></div>
+    <div class="level-progress"><div class="level-progress-bar"><div class="level-progress-fill" id="lvl2-fill" style="width:0%"></div></div><div class="level-progress-label" id="lvl2-label"></div></div>
     <div class="card-grid">
 
       <!-- PO Match -->
@@ -459,6 +513,60 @@ body {
 // ══════════════════════════════════════════════════════════
 // READ COMPLETION STATE FROM EACH DASHBOARD'S localStorage
 // ══════════════════════════════════════════════════════════
+// Self-attested prerequisites — same derivation as ottCertStatus() in _shared/state-migration-module.js (the portal
+// carries no injected modules): a confirmed bypass on Demo 102 attests Demo 101; on PO Match attests Demo 101 + 102.
+// Read-only; examPassed always wins; attested is never counted as an earned certification.
+const PREREQS = { ottimate_d102_state: ['ottimate_demo_state'], ottimate_pomatch_state: ['ottimate_demo_state', 'ottimate_d102_state'] };
+const DASH_LABEL = { ottimate_demo_state: 'Demo 101', ottimate_d102_state: 'Demo 102', ottimate_pomatch_state: 'Demo 201 — PO Match' };
+function attestation(key) {
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e) { return null; } };
+  const own = read(key); if (own && own.examPassed === true) return null;
+  for (const via in PREREQS) {
+    if (!PREREQS[via].includes(key)) continue;
+    const o = read(via);
+    if (o && o.bypassed === true) {
+      const at = bypassWhen(o);
+      const verified = o.bypassVerified === true;
+      return { viaLabel: DASH_LABEL[via], at, verified, title: 'You confirmed completing this on another device when you opened ' + DASH_LABEL[via] + (at ? ' ' + at : '') + (verified ? '. Verified by Sales Enablement.' : '.') };
+    }
+  }
+  return null;
+}
+// "on Sep 11, 2026", or for bypasses recorded before the date was stamped, "around <record creation date>" (same rule as ottBypassWhen).
+function bypassWhen(o) { if (o.bypassedAt) return 'on ' + new Date(o.bypassedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); return o.certDate ? 'around ' + o.certDate : ''; }
+function bypassInfo(key) {
+  try { const o = JSON.parse(localStorage.getItem(key) || 'null'); if (o && o.bypassed === true && o.examPassed !== true) return { at: bypassWhen(o), verified: o.bypassVerified === true }; } catch(e) {}
+  return null;
+}
+/* Rejected bypass → dismissible notice at the top of the portal (the dashboard's gate explains it too). */
+function updateBypassRejectedBanner() {
+  const banner = document.getElementById('bypass-rejected-banner'); if (!banner) return;
+  const msgs = [];
+  ['ottimate_d102_state', 'ottimate_pomatch_state'].forEach(k => {
+    try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.bypassRejected && !o.bypassRejectedAck && typeof ottBypassRejectionText === 'function') { const t = ottBypassRejectionText(k); if (t) msgs.push(t); } } catch(e) {}
+  });
+  document.getElementById('bypass-rejected-text').textContent = msgs.length ? '⚠️ ' + msgs.join(' ') : '';
+  banner.classList.toggle('on', msgs.length > 0);
+}
+function dismissBypassRejected() {
+  ['ottimate_d102_state', 'ottimate_pomatch_state'].forEach(k => {
+    try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.bypassRejected) { o.bypassRejectedAck = true; localStorage.setItem(k, JSON.stringify(o)); } } catch(e) {}
+  });
+  updateBypassRejectedBanner();
+}
+function setAttested(card, badge, cta, att, started, modules, total) {
+  card.classList.add(att.verified ? 'verified' : 'attested');
+  badge.className = 'status-badge ' + (att.verified ? 'verified' : 'attested');
+  badge.textContent = att.verified ? '✓ Admin verified' : '☑ Self-attested';
+  badge.title = att.title;
+  cta.textContent = started ? 'Continue →' : 'Start →';
+}
+function setNote(card, cls, text) {
+  const old = card.querySelector('.' + cls); if (old) old.remove();
+  if (!text) return;
+  const note = document.createElement('div'); note.className = cls; note.textContent = text;
+  const status = card.querySelector('.card-status'); (status || card).insertAdjacentElement(status ? 'beforebegin' : 'beforeend', note);
+}
 function getState() {
   const read = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; } };
 
@@ -509,20 +617,37 @@ function getState() {
 
 function updatePortal() {
   const s = getState();
-  const d101Complete = s.d101.passed;
-  const d102Complete = s.d102.passed;
+  s.d101.attested = attestation('ottimate_demo_state');
+  s.d102.attested = attestation('ottimate_d102_state');
+  const d101Complete = s.d101.passed || !!s.d101.attested;
+  const d102Complete = s.d102.passed || !!s.d102.attested;
 
   // Greeting
-  const name = s.d101.name || s.fund.name || s.d102.name;
+  let profileName = ''; try { profileName = (JSON.parse(localStorage.getItem('ottimate_profile') || 'null') || {}).name || ''; } catch (e) {}
+  const name = profileName || s.d101.name || s.fund.name || s.d102.name || s.pm.name;
   const greetEl = document.getElementById('portal-greeting');
-  if (name) greetEl.textContent = 'Welcome back, ' + name.split(' ')[0] + '!';
+  greetEl.textContent = name ? 'Welcome back, ' + name.split(' ')[0] + '!' : 'Welcome!';
+  updateProfileEmailBanner();
 
   // Progress
-  const certCount = [s.fund.passed, s.d101.passed, s.d102.passed].filter(Boolean).length;
-  const fillPct = Math.round((certCount / 3) * 100);
-  document.getElementById('portal-progress-fill').style.width = fillPct + '%';
-  document.getElementById('portal-progress-label').textContent =
-    certCount + ' of 3 Level 1 certifications earned';
+  // ── Progress bars: overall (top) + one per level. Each step = a module or a final exam; certs are the exams. ──
+  const TRACKS = { fund: { modules: 4, level: 1 }, d101: { modules: 3, level: 1 }, d102: { modules: 4, level: 1 }, pm: { modules: 5, level: 2 } };
+  const attestedCount = [s.d101.attested, s.d102.attested].filter(Boolean).length;
+  const progress = (keys) => {
+    let done = 0, total = 0, certs = 0, certsTotal = 0;
+    keys.forEach(k => { const t = s[k], m = TRACKS[k].modules; total += m + 1; certsTotal++; done += Math.min(t.modules || 0, m) + (t.passed ? 1 : 0); if (t.passed) certs++; });
+    return { pct: total ? Math.round(done / total * 100) : 0, done, total, certs, certsTotal };
+  };
+  const setBar = (fillId, labelId, p, prefix) => {
+    const fill = document.getElementById(fillId), label = document.getElementById(labelId); if (!fill || !label) return;
+    fill.style.width = p.pct + '%';
+    label.textContent = prefix + p.certs + ' of ' + p.certsTotal + ' certification' + (p.certsTotal === 1 ? '' : 's') + ' · ' + p.done + ' of ' + p.total + ' steps complete';
+  };
+  const overall = progress(['fund', 'd101', 'd102', 'pm']);
+  document.getElementById('portal-progress-fill').style.width = overall.pct + '%';
+  document.getElementById('portal-progress-label').textContent = 'Overall: ' + overall.certs + ' of ' + overall.certsTotal + ' certifications earned · ' + overall.done + ' of ' + overall.total + ' steps complete' + (attestedCount ? ' · ' + attestedCount + ' self-attested' : '');
+  setBar('lvl1-fill', 'lvl1-label', progress(['fund', 'd101', 'd102']), '');
+  setBar('lvl2-fill', 'lvl2-label', progress(['pm']), '');
 
   // ── Fundamentals card ──
   const cardFund = document.getElementById('card-fund');
@@ -565,11 +690,15 @@ function updatePortal() {
   const cardD101 = document.getElementById('card-d101');
   const statusD101 = document.getElementById('status-d101');
   const ctaD101 = document.getElementById('cta-d101');
+  updateBypassRejectedBanner();
+  cardD101.classList.remove('attested', 'verified'); statusD101.removeAttribute('title');
   if (s.d101.passed) {
     cardD101.classList.add('certified');
     statusD101.className = 'status-badge certified';
     statusD101.textContent = '✓ Certified';
     ctaD101.textContent = 'Review →';
+  } else if (s.d101.attested) {
+    setAttested(cardD101, statusD101, ctaD101, s.d101.attested, s.d101.started, s.d101.modules, 3);
   } else if (s.d101.started) {
     cardD101.classList.add('in-progress');
     statusD101.className = 'status-badge in-progress';
@@ -581,13 +710,18 @@ function updatePortal() {
   const cardD102 = document.getElementById('card-d102');
   const statusD102 = document.getElementById('status-d102');
   const ctaD102 = document.getElementById('cta-d102');
-  if (d101Complete) {
+  cardD102.classList.remove('attested', 'verified'); statusD102.removeAttribute('title');
+  const d102Bypass = bypassInfo('ottimate_d102_state');
+  setNote(cardD102, 'bypass-note', d102Bypass ? ((d102Bypass.verified ? '✓ Opened via bypass' : '☑ Opened via bypass') + (d102Bypass.at ? ' ' + d102Bypass.at : '') + ' — you confirmed Demo 101 was completed elsewhere' + (d102Bypass.verified ? ' (verified by Sales Enablement).' : '.')) : '');
+  if (d101Complete || d102Bypass) {
     cardD102.classList.remove('locked');
     if (s.d102.passed) {
       cardD102.classList.add('certified');
       statusD102.className = 'status-badge certified';
       statusD102.textContent = '✓ Certified';
       ctaD102.textContent = 'Review →';
+    } else if (s.d102.attested) {
+      setAttested(cardD102, statusD102, ctaD102, s.d102.attested, s.d102.started, s.d102.modules, 4);
     } else if (s.d102.started) {
       cardD102.classList.add('in-progress');
       statusD102.className = 'status-badge in-progress';
@@ -601,12 +735,14 @@ function updatePortal() {
   }
 
   // ── PO Match card (Level 2 — locked until BOTH Demo 101 and Demo 102 are certified) ──
-  const level1Complete = s.d101.passed && s.d102.passed;
+  const level1Complete = d101Complete && d102Complete;
   const cardPM = document.getElementById('card-pomatch');
   const statusPM = document.getElementById('status-pomatch');
   const ctaPM = document.getElementById('cta-pomatch');
+  const pmBypass = bypassInfo('ottimate_pomatch_state');
   if (cardPM) {
-    if (level1Complete) {
+    setNote(cardPM, 'bypass-note', pmBypass ? ((pmBypass.verified ? '✓ Opened via bypass' : '☑ Opened via bypass') + (pmBypass.at ? ' ' + pmBypass.at : '') + ' — you confirmed Demo 101 and Demo 102 were completed elsewhere' + (pmBypass.verified ? ' (verified by Sales Enablement).' : '.')) : '');
+    if (level1Complete || pmBypass) {
       cardPM.classList.remove('locked');
       if (s.pm.passed) {
         cardPM.classList.add('certified');
@@ -676,8 +812,267 @@ function confirmReset() {
   }
 }
 
+function getProfileEmail() {
+  const candidates = [];
+  try {
+    const profile = JSON.parse(localStorage.getItem('ottimate_profile') || 'null');
+    if (profile && profile.email) candidates.push(String(profile.email).trim());
+  } catch (e) {}
+  if (typeof APP !== 'undefined' && APP && APP.email) candidates.push(String(APP.email).trim());
+  ['ottimate_demo_state', 'ottimate_fundamentals_state', 'ottimate_d102_state', 'ottimate_pomatch_state'].forEach(function(key) {
+    try {
+      const state = JSON.parse(localStorage.getItem(key) || 'null');
+      if (state && state.email) candidates.push(String(state.email).trim());
+    } catch (e) {}
+  });
+  return candidates.find(Boolean) || '';
+}
+
+/* ✎ Edit Your Profile — the portal's view of the ONE shared profile (ottimate_profile). Same fields, required
+   rules, option-card styling and copy as the dashboards' shared editor (profile-module.js). Writes the profile;
+   every dashboard overlays it onto its own record on next load (state-migration-module.js), and a rename
+   follows the person into every dashboard record. Nothing here touches progress or certifications. */
+const PE_VERTICALS = [['restaurants','🍽️ Restaurants'],['hospitality','🏨 Hospitality'],['retail','🛒 Retail'],['grocery','🥬 Grocery'],['seniorliving','🏠 Senior Living'],['healthcare','🏥 Healthcare']];
+const PE_ROLES = [['AE','Account Executive (AE)'],['SE','Sales Engineer (SE)'],['SDR','SDR / BDR'],['CSM','Customer Success (CSM)'],['MGR','Sales Manager'],['PARTNER','Channel Partner / Reseller'],['OTHER','Other']];
+function peEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function readSharedProfile() {
+  try { const p = JSON.parse(localStorage.getItem('ottimate_profile') || 'null'); if (p && typeof p === 'object') return p; } catch (e) {}
+  // no shared profile yet (pre-profile records): seed it from the first dashboard record that has a name
+  const s = getState();
+  const rec = [s.d101, s.fund, s.d102, s.pm].find(r => r && r.name);
+  if (!rec) return {};
+  for (const k of ['ottimate_demo_state','ottimate_fundamentals_state','ottimate_d102_state','ottimate_pomatch_state']) {
+    try { const r = JSON.parse(localStorage.getItem(k) || 'null'); if (r && r.name === rec.name) return { name: r.name, email: r.email || '', role: r.role || '', verticals: Array.isArray(r.verticals) ? r.verticals : [] }; } catch (e) {}
+  }
+  return { name: rec.name };
+}
+function openProfileEmailPrompt() { openProfileEditor({ focusEmail: true }); }
+function openProfileEditor(opts) {
+  opts = opts || {};
+  const existing = readSharedProfile();
+  const old = document.getElementById('profile-editor-overlay'); if (old) old.remove();
+  const state = { role: existing.role || '', verticals: Array.isArray(existing.verticals) ? existing.verticals.slice() : [] };
+  const roleCards = PE_ROLES.map(([v, l]) => '<button type="button" class="pe-card' + (state.role === v ? ' selected' : '') + '" data-role="' + v + '">' + l + '</button>').join('');
+  const vertCards = PE_VERTICALS.map(([v, l]) => '<button type="button" class="pe-card' + (state.verticals.includes(v) ? ' selected' : '') + '" data-vert="' + v + '">' + l + '</button>').join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'profile-editor-overlay'; overlay.className = 'pe-overlay';
+  overlay.innerHTML = '<form class="pe-modal" id="profile-editor-form" autocomplete="on" novalidate>'
+    + '<div class="pe-title">✎ Edit Your Profile</div>'
+    + '<div class="pe-sub">One profile, shared across every training dashboard.</div>'
+    + '<div class="pe-fields">'
+    +   '<div><label class="pe-label" for="profile-editor-name">Your Name</label><input class="pe-input" id="profile-editor-name" name="name" type="text" autocomplete="name" placeholder="e.g. Jordan Rivera" value="' + peEsc(existing.name || '') + '"></div>'
+    +   '<div><label class="pe-label" for="profile-editor-email">Your Work Email</label><input class="pe-input" id="profile-editor-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@company.com" value="' + peEsc(existing.email || '') + '"></div>'
+    + '</div>'
+    + '<label class="pe-label">Your Role</label><div class="pe-grid" id="pe-roles">' + roleCards + '</div>'
+    + '<label class="pe-label">Your Primary Verticals <small>(select all that apply)</small></label><div class="pe-grid" id="pe-verts">' + vertCards + '</div>'
+    + '<div class="pe-note" id="profile-editor-note">⚠️ Please enter your name and a valid work email, select your role, and choose at least one vertical.</div>'
+    + '<div class="pe-actions"><button type="button" class="pe-btn pe-btn-secondary" id="profile-editor-cancel">Cancel</button><button type="submit" class="pe-btn pe-btn-primary" id="profile-editor-save">Save changes</button></div>'
+    + '<p class="pe-hint">Your name, role, and verticals appear on your certificates and completion records; your work email is used for training updates and release reminders. Changing your profile never resets any progress or certification.</p>'
+    + '</form>';
+  document.body.appendChild(overlay);
+  const form = overlay.querySelector('#profile-editor-form');
+  const note = overlay.querySelector('#profile-editor-note');
+  overlay.querySelectorAll('#pe-roles .pe-card').forEach(btn => btn.addEventListener('click', () => {
+    overlay.querySelectorAll('#pe-roles .pe-card').forEach(b => b.classList.toggle('selected', b === btn));
+    state.role = btn.getAttribute('data-role');
+  }));
+  overlay.querySelectorAll('#pe-verts .pe-card').forEach(btn => btn.addEventListener('click', () => {
+    const v = btn.getAttribute('data-vert');
+    btn.classList.toggle('selected');
+    state.verticals = state.verticals.includes(v) ? state.verticals.filter(x => x !== v) : state.verticals.concat([v]);
+  }));
+  overlay.querySelector('#profile-editor-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = (form.querySelector('#profile-editor-name').value || '').trim();
+    const email = (form.querySelector('#profile-editor-email').value || '').trim();
+    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !state.role || state.verticals.length === 0) { note.classList.add('on'); return; }
+    const prevName = existing.name || '';
+    const next = Object.assign({}, existing, { name, email, role: state.role, verticals: state.verticals.slice(), updatedAt: Date.now() });
+    try {
+      localStorage.setItem('ottimate_profile', JSON.stringify(next));
+      // Push identity into every dashboard record that belongs to this person right away (the dashboards also
+      // overlay the profile on their next load; this keeps the portal's own cards and greeting current).
+      ['ottimate_demo_state','ottimate_fundamentals_state','ottimate_d102_state','ottimate_pomatch_state'].forEach(k => {
+        try {
+          const r = JSON.parse(localStorage.getItem(k) || 'null');
+          if (!r || typeof r !== 'object') return;
+          if (!r.name || (r.name !== prevName && r.name !== name)) return;   // someone else's record (or no profile yet — ottMigrateState seeds it) — leave it
+          r.name = name; r.email = email; r.role = state.role; r.verticals = state.verticals.slice();
+          localStorage.setItem(k, JSON.stringify(r));
+        } catch (e) {}
+      });
+    } catch (e) {}
+    overlay.remove();
+    updatePortal();
+  });
+  const focusEl = opts.focusEmail ? form.querySelector('#profile-editor-email') : form.querySelector('#profile-editor-name');
+  setTimeout(() => { if (focusEl) focusEl.focus(); }, 50);
+  return false;
+}
+
+function updateProfileEmailBanner() {
+  const banner = document.getElementById('profile-email-banner');
+  if (!banner) return;
+  banner.classList.toggle('on', !getProfileEmail());
+}
+
+/* OTT-BYPASSVERIFY:START — admin verification of prerequisite bypasses (CONSISTENCY-GUIDE §10).
+   Identical in every dashboard AND the portal. Injected by inject-bypassverify.js.
+
+   Flow:  rep confirms a bypass → ottNotifyBypass() sends the event (Make.com webhook when configured, else the
+          EmailJS bypass email) with a random per-bypass id stored on the record as bypassId
+        → Enablement approves / rejects from the email (Make scenario, see _shared/BYPASS-VERIFICATION-SETUP.md)
+        → every page load calls ottVerifyBypasses(): fetch the verification FEED (id,status rows), match this
+          browser's bypassIds and apply:
+            approved → bypassVerified:true (+ bypassed restored if it had been rejected)  → "✓ Admin verified"
+            rejected → bypassed removed (the gate returns), bypassRejected:true         → "not verified" notice
+            no row   → nothing changes (self-attested, as before)
+   Only this browser's own ids are looked up, so the feed never needs to carry names or emails.
+   Config: the two URLs below. Both blank = today's behaviour (EmailJS email, no verification). */
+var OTT_BYPASS_WEBHOOK_URL = '';   // Make.com "bypass event" webhook (GET). Blank → EmailJS bypass email (per-dashboard template).
+var OTT_BYPASS_FEED_URL    = '';   // Verification feed: published Google Sheet CSV (id,status,decided_at) or a JSON URL. Blank → _shared/bypass-verifications.json next to the site.
+var OTT_BYPASS_FEED_FALLBACK = '_shared/bypass-verifications.json';
+var OTT_BYPASS_EMAIL_NAME = { ottimate_d102_state: 'Demo 102 — Vendor Pay & Basic Reporting', ottimate_pomatch_state: 'PO Match (Level 2)' };   // EmailJS training_name — keep (Enablement filters on these)
+var OTT_BYPASS_LABEL = { ottimate_d102_state: 'Demo 102', ottimate_pomatch_state: 'Demo 201 — PO Match' };
+var OTT_BYPASS_PREREQ_LABEL = { ottimate_d102_state: 'Demo 101', ottimate_pomatch_state: 'Demo 101 + Demo 102' };
+function ottBypassRead(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } }
+function ottBypassWrite(k, o){ try { localStorage.setItem(k, JSON.stringify(o)); } catch(e){} }
+function ottBypassNewId(){ var s = ''; try { var a = new Uint8Array(8); crypto.getRandomValues(a); for (var i = 0; i < a.length; i++) s += ('0' + a[i].toString(16)).slice(-2); } catch(e){ s = Math.random().toString(16).slice(2, 18); } return 'bp_' + Date.now().toString(36) + '_' + s; }
+/* Send the bypass event. Called by the dashboards' sendEmailBypass() (immediately when a profile exists, else deferred
+   until the welcome form is saved — see flushBypassNotice). Idempotent per id: the record remembers it was sent. */
+function ottNotifyBypass(ownKey, name, role, extra){
+  var own = ottBypassRead(ownKey) || {};
+  if (!own.bypassId){ own.bypassId = ottBypassNewId(); ottBypassWrite(ownKey, own); }
+  var email = '';
+  try { var p = JSON.parse(localStorage.getItem('ottimate_profile') || 'null'); email = (p && p.email) || own.email || ''; } catch(e){}
+  var roleLabel = (typeof ottRoleLabel === 'function') ? ottRoleLabel(role) : (role || '');
+  var when = new Date();
+  if (OTT_BYPASS_WEBHOOK_URL){
+    try {
+      var q = new URLSearchParams({ event: 'bypass', id: own.bypassId, name: name || 'Not yet provided', email: email || '', role: roleLabel || 'Not yet provided',
+        dashboard: OTT_BYPASS_LABEL[ownKey] || ownKey, prereqs: OTT_BYPASS_PREREQ_LABEL[ownKey] || '', time: when.toISOString(),
+        time_label: when.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' }), site: location.origin + location.pathname.replace(/[^/]*$/, ''),
+        legacy: (extra && extra.legacy) ? '1' : '0', since: (extra && extra.since) || '' });
+      fetch(OTT_BYPASS_WEBHOOK_URL + (OTT_BYPASS_WEBHOOK_URL.indexOf('?') >= 0 ? '&' : '?') + q.toString(), { method: 'GET', mode: 'no-cors', keepalive: true });
+    } catch(e){}
+  } else if (typeof emailjs !== 'undefined'){
+    try {
+      emailjs.send('service_fpds6be', 'template_aizkufe', { user_name: name || 'Not yet provided', user_role: roleLabel || 'Not yet provided',
+        training_name: OTT_BYPASS_EMAIL_NAME[ownKey] || ownKey, bypass_time: when.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' }), bypass_id: own.bypassId, user_email: email });
+    } catch(e){}
+  }
+}
+/* Bypasses recorded before verification existed (bypassed:true, no bypassId) are registered with Make ONCE on the first
+   load after OTT_BYPASS_WEBHOOK_URL is configured — flagged legacy=1 with the best-known date — so Enablement can decide
+   on them too. Never uses the EmailJS fallback (those reps' emails were already sent at the time). Needs a profile name. */
+function ottRegisterLegacyBypasses(){
+  if (!OTT_BYPASS_WEBHOOK_URL) return;
+  var p = null; try { p = JSON.parse(localStorage.getItem('ottimate_profile') || 'null'); } catch(e){}
+  Object.keys(OTT_BYPASS_LABEL).forEach(function(k){
+    var own = ottBypassRead(k); if (!own || own.bypassed !== true || own.bypassId || own.bypassNotifyPending) return;
+    var name = (p && p.name) || own.name; if (!name) return;
+    var since = own.bypassedAt ? new Date(own.bypassedAt).toISOString() : (own.certDate ? 'around ' + own.certDate : 'unknown');
+    ottNotifyBypass(k, name, (p && p.role) || own.role || '', { legacy: true, since: since });
+  });
+}
+/* Parse the feed: JSON ([{id,status}] or {rows:[…]} or {id:status}) or CSV with an id and a status column. */
+function ottParseBypassFeed(text){
+  var out = {}; text = String(text || '').replace(/^\uFEFF/, '').trim(); if (!text) return out;
+  var norm = function(s){ s = String(s || '').trim().toLowerCase(); return (s === 'approve' || s === 'approved' || s === 'verified' || s === 'yes') ? 'approved' : (s === 'reject' || s === 'rejected' || s === 'denied' || s === 'no') ? 'rejected' : ''; };
+  if (text[0] === '[' || text[0] === '{'){
+    try {
+      var j = JSON.parse(text); var rows = Array.isArray(j) ? j : (Array.isArray(j.rows) ? j.rows : null);
+      if (rows) rows.forEach(function(r){ if (r && r.id) out[String(r.id).trim()] = norm(r.status); });
+      else for (var k in j) if (Object.prototype.hasOwnProperty.call(j, k)) out[String(k).trim()] = norm(j[k]);
+    } catch(e){}
+    return out;
+  }
+  var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); }); if (!lines.length) return out;
+  var cells = function(line){ var res = [], cur = '', q = false; for (var i = 0; i < line.length; i++){ var c = line[i]; if (q){ if (c === '"' && line[i + 1] === '"'){ cur += '"'; i++; } else if (c === '"') q = false; else cur += c; } else if (c === '"') q = true; else if (c === ','){ res.push(cur); cur = ''; } else cur += c; } res.push(cur); return res; };
+  var head = cells(lines[0]).map(function(h){ return h.trim().toLowerCase(); });
+  var iId = head.indexOf('id'), iSt = head.indexOf('status');
+  if (iId < 0 || iSt < 0){ iId = 0; iSt = 1; } else lines = lines.slice(1);
+  lines.forEach(function(l){ var c = cells(l); var id = (c[iId] || '').trim(); if (id) out[id] = norm(c[iSt]); });
+  return out;
+}
+function ottBypassFeedUrl(){ return OTT_BYPASS_FEED_URL || (location.protocol === 'file:' ? '' : OTT_BYPASS_FEED_FALLBACK); }
+/* Apply decisions for this browser's bypass ids. Returns the list of {key,status} that CHANGED. */
+function ottApplyBypassDecisions(feed){
+  var changed = [];
+  Object.keys(OTT_BYPASS_LABEL).forEach(function(k){
+    var own = ottBypassRead(k); if (!own || !own.bypassId) return;
+    var st = feed[own.bypassId]; if (!st) return;
+    var now = Date.now();
+    if (st === 'approved' && !own.bypassVerified){
+      own.bypassVerified = true; own.bypassVerifiedAt = now; own.bypassed = true;
+      delete own.bypassRejected; delete own.bypassRejectedAt; delete own.bypassRejectedAck;
+      ottBypassWrite(k, own); changed.push({ key: k, status: 'approved' });
+    } else if (st === 'rejected' && !own.bypassRejected){
+      own.bypassRejected = true; own.bypassRejectedAt = now;
+      delete own.bypassed; delete own.bypassVerified; delete own.bypassVerifiedAt;
+      ottBypassWrite(k, own); changed.push({ key: k, status: 'rejected' });
+    }
+  });
+  return changed;
+}
+/* Fetch the feed and apply. cb(changed) runs only when something changed. Silent on any failure (offline, file://, no feed). */
+function ottVerifyBypasses(cb){
+  var need = Object.keys(OTT_BYPASS_LABEL).some(function(k){ var o = ottBypassRead(k); return !!(o && o.bypassId); });
+  var url = ottBypassFeedUrl(); if (!need || !url || typeof fetch !== 'function') return;
+  try {
+    fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : ''; }).then(function(t){
+      if (!t) return;
+      var changed = ottApplyBypassDecisions(ottParseBypassFeed(t));
+      if (changed.length && typeof cb === 'function') cb(changed);
+    }).catch(function(){});
+  } catch(e){}
+}
+/* Rejection notice (portal banner / dashboard gate). Returns '' when there is nothing to show. */
+function ottBypassRejectionText(k){
+  var o = ottBypassRead(k); if (!o || !o.bypassRejected) return '';
+  var at = o.bypassRejectedAt ? new Date(o.bypassRejectedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+  return 'Sales Enablement could not verify your ' + (OTT_BYPASS_LABEL[k] || k) + ' bypass' + (at ? ' (' + at + ')' : '') + '. Please complete ' + (OTT_BYPASS_PREREQ_LABEL[k] || 'the prerequisite') + ' here first — your progress in ' + (OTT_BYPASS_LABEL[k] || k) + ' is kept and will be waiting once you do.';
+}
+/* Dashboard gate screens: show the rejection note and hide the "Completed on another device?" link. */
+function ottApplyGateRejection(ownKey){
+  var txt = ottBypassRejectionText(ownKey); if (!txt) return;
+  var card = document.querySelector('#screen-gate .gate-card'); if (!card || card.querySelector('.gate-rejected')) return;
+  var note = document.createElement('div'); note.className = 'gate-rejected';
+  note.style.cssText = 'margin:0 0 1rem;padding:0.7rem 0.9rem;border-radius:8px;background:#FEF9E7;border:1px solid #F39C12;color:#7D4C00;font-size:0.86rem;line-height:1.45;text-align:left;';
+  note.textContent = '⚠️ ' + txt;
+  var anchor = card.querySelector('h2'); if (anchor) anchor.insertAdjacentElement('afterend', note); else card.prepend(note);
+  card.querySelectorAll('.gate-bypass').forEach(function(el){ el.style.display = 'none'; });
+}
+/* Default handler: portal → re-render cards + rejection banner; dashboards → toast on approval, notice on rejection,
+   Learning Path re-render. The gate itself applies on the next load (never yank a rep out mid-module). */
+function ottOnBypassDecisions(changed){
+  if (typeof updatePortal === 'function'){ try { updatePortal(); } catch(e){} }
+  var file = (location.pathname.match(/([^/]+)\.html/) || [])[1] || '';
+  var ownKey = { 'demo102': 'ottimate_d102_state', 'pomatch': 'ottimate_pomatch_state' }[file] || '';
+  changed.forEach(function(c){
+    if (c.status === 'approved' && typeof ottProfileToast === 'function') ottProfileToast('✓ Sales Enablement verified your ' + OTT_BYPASS_LABEL[c.key] + ' bypass.');
+    if (c.status === 'rejected' && c.key === ownKey) ottShowRejectionNotice(c.key);
+  });
+  if (document.getElementById('lp-mount') && typeof renderLearningPath === 'function') renderLearningPath('lp-mount');
+}
+function ottShowRejectionNotice(k){
+  var txt = ottBypassRejectionText(k); if (!txt) return;
+  var shell = document.getElementById('app-shell'); var body = shell && shell.querySelector('.app-body');
+  if (!body || document.getElementById('ott-bypass-rejected')) return;
+  var n = document.createElement('div'); n.id = 'ott-bypass-rejected';
+  n.style.cssText = 'flex-shrink:0;background:#FEF9E7;border-bottom:1px solid #F39C12;color:#7D4C00;padding:0.65rem 1.25rem;text-align:center;font-size:0.86rem;font-weight:600;line-height:1.4;display:flex;align-items:center;justify-content:center;gap:0.8rem;flex-wrap:wrap;';
+  n.innerHTML = '<span>⚠️ ' + txt.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span><a href="portal.html" style="background:var(--navy);color:#fff;border-radius:6px;padding:0.35rem 0.8rem;font-weight:700;font-size:0.82rem;text-decoration:none;white-space:nowrap;">Back to Portal</a>';
+  body.insertAdjacentElement('beforebegin', n);
+}
+ottRegisterLegacyBypasses();
+ottVerifyBypasses(ottOnBypassDecisions);
+/* OTT-BYPASSVERIFY:END */
+
 // Run on load
 updatePortal();
+updateProfileEmailBanner();
 </script>
 </body>
 </html>

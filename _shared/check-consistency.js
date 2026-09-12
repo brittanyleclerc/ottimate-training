@@ -41,6 +41,14 @@ const CANON = {
   '--shadow-lg':'0 8px 32px rgba(0,0,0,0.18)','--radius':'10px'
 };
 const FILES = ['portal.html','fundamentals-training.html','demo-training.html','demo102.html','pomatch.html'];
+// [source file in _shared, start marker, end marker] — the dashboard copy must equal the trimmed source
+const SHARED_BLOCKS = [
+  ['state-migration-module.js', '/* OTT-STATEMIGRATE:START', 'OTT-STATEMIGRATE:END */'],
+  ['profile-module.js',         '/* OTT-PROFILE:START',      'OTT-PROFILE:END */'],
+  ['email-banner-module.js',    '/* OTT-EMAILBANNER:START',  'OTT-EMAILBANNER:END */'],
+  ['learning-path-module.js',   '/* OTT-LEARNINGPATH:START', 'OTT-LEARNINGPATH:END */'],
+  ['bypass-verify-module.js',   '/* OTT-BYPASSVERIFY:START', 'OTT-BYPASSVERIFY:END */'],
+];
 
 function tokens(css){
   const map = {};
@@ -82,6 +90,27 @@ for (const f of FILES){
   if (!/name="viewport"[^>]*width=device-width/.test(h.slice(0,2000))) issues.push('viewport meta missing');
   // 6) layout metric tokens (new)
   for (const k of ['--sidebar-w','--header-h','--main-max']) if (!(k in t)) issues.push(`missing layout token ${k}`);
+  // 8) shared modules must be byte-identical to their _shared source (dashboards only). Hand-editing a
+  //    dashboard's copy is how the four files drifted on 2026-09-11 — fix the _shared file, re-run its injector.
+  for (const [src, S, E] of SHARED_BLOCKS) {
+      if (f === 'portal.html' && src !== 'bypass-verify-module.js') continue;
+      const canon = fs.readFileSync(path.join(__dirname, src), 'utf8').trim();
+      const n = h.split(S).length - 1;
+      if (n !== 1) { issues.push(`${src}: expected exactly 1 ${S} block, found ${n}`); continue; }
+      const a = h.indexOf(S), b = h.indexOf(E, a);
+      if (b < 0) { issues.push(`${src}: end marker missing`); continue; }
+      if (h.slice(a, b + E.length) !== canon) issues.push(`${src}: dashboard copy differs from _shared source — re-run its injector`);
+  }
+  if (f !== 'portal.html') {
+    // 9) the email banner must live INSIDE #app-shell (between .app-header and .app-body); anything placed in
+    //    <body> before the shell sits under position:fixed #app-shell and is never visible.
+    const shell = h.indexOf('id="app-shell"'), banner = h.indexOf('id="profile-email-banner"'), body = h.indexOf('<div class="app-body">', shell);
+    const nb = h.split('id="profile-email-banner"').length - 1;
+    if (nb !== 1) issues.push(`expected exactly 1 #profile-email-banner, found ${nb}`);
+    else if (!(banner > shell && banner < body)) issues.push('#profile-email-banner is not inside #app-shell before .app-body (run inject-emailbanner.js)');
+    // 10) session restore must bring the email back, or the next save blanks it
+    if (!/APP.email = (s|saved).email/.test(h)) issues.push('session restore does not set APP.email (run inject-statemigrate.js)');
+  }
 
   if (issues.length){ anyDrift = true; console.log(`• ${f}: ${issues.length} issue(s)`); issues.forEach(i=>console.log(`    - ${i}`)); }
   else console.log(`• ${f}: ✓ consistent`);

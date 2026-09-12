@@ -1,5 +1,7 @@
-/* OTT-PROFILE:START — shared "Your Profile" card + inline role/verticals editor.
+/* OTT-PROFILE:START — shared "Your Profile" card + inline name/email/role/verticals editor.
    Identical in every dashboard. Injected by inject-profile.js.
+   - Name + email are text inputs (.pc-input); email is REQUIRED (2026-09-11) — it feeds release
+     reminders — and the "add your work email" banner (email-banner-module.js) opens this editor.
    - Options (roles, verticals) are SCRAPED from the dashboard's own welcome screen
      (toggleRole / toggleVertical cards), so each dashboard keeps its own role values
      (they flow into cert webhooks/emails) and its native card styling.
@@ -16,6 +18,11 @@ var OTT_PROFILE_CSS = ''
   + '#profile-card .pc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.5rem;margin:0.4rem 0 1rem;}'
   + '#profile-card .pc-grid > *{margin:0;}'
   + '#profile-card .pc-actions{display:flex;gap:0.5rem;flex-wrap:wrap;}'
+  + '#profile-card .pc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.75rem 1rem;margin:0 0 1rem;}'
+  + '#profile-card .pc-fields .form-label{margin-bottom:0.35rem;}'
+  + '#profile-card .pc-input{display:block;width:100%;padding:0.6rem 0.8rem;border:2px solid var(--gray2);border-radius:8px;font-size:0.9rem;font-family:inherit;color:var(--gray5);background:var(--white);transition:border-color 0.18s;}'
+  + '#profile-card .pc-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light);}'
+  + '#profile-card .pc-email{font-size:0.82rem;color:var(--gray4);margin-top:0.15rem;}'
   + '#lens-card .pc-chip{display:inline-block;font-size:0.74rem;font-weight:600;color:var(--accent);background:var(--accent-light);border:1px solid var(--accent);border-radius:100px;padding:0.12rem 0.6rem;margin-bottom:0.35rem;}'
   + '#lens-card .pc-lens-grid{display:grid;grid-template-columns:1fr;gap:0.9rem 1.5rem;}'
   + '#lens-card .pc-lens-grid.pc-lens-2col{grid-template-columns:1fr 1fr;}'
@@ -77,6 +84,7 @@ function ottProfileVertLabel(v){
   var hit = ottProfileOptions().verts.filter(function(o){ return o.value === v; })[0];
   return hit ? hit.label : v;
 }
+function ottProfileEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function ottProfileCardHTML(){
   var verts = (typeof APP !== 'undefined' && Array.isArray(APP.verticals)) ? APP.verticals : [];
   var chips = verts.length ? verts.map(function(v){ return '<span class="pc-chip">' + ottProfileVertLabel(v) + '</span>'; }).join('')
@@ -85,8 +93,9 @@ function ottProfileCardHTML(){
     +  '<div class="flex items-center justify-between" style="flex-wrap:wrap;gap:0.6rem;">'
     +    '<div><div class="pc-title">👤 Your Profile</div>'
     +      '<div class="pc-role">Role: <strong>' + ottProfileRoleLabel() + '</strong></div>'
+    +      '<div class="pc-email">' + ((typeof APP !== 'undefined' && APP.email) ? '📧 ' + ottProfileEsc(APP.email) : '<span style="color:var(--red);font-weight:600;">📧 No work email on file — add one to get training updates.</span>') + '</div>'
     +      '<div style="margin-top:0.3rem;">' + chips + '</div></div>'
-    +    '<button class="btn btn-secondary btn-sm" onclick="openProfileEditor()" style="white-space:nowrap;">✎ Edit role &amp; verticals</button>'
+    +    '<button class="btn btn-secondary btn-sm" onclick="openProfileEditor()" style="white-space:nowrap;">✎ Edit Profile &amp; Verticals</button>'
     +  '</div></div>';
 }
 /* Insert the card right after the dashboard hero (idempotent). */
@@ -140,8 +149,13 @@ function ottInjectLensCard(){
 }
 /* ── editor ── */
 var PF_ROLE = '', PF_VERTS = [];
-function openProfileEditor(){
-  var card = document.getElementById('profile-card'); if (!card) return;
+/* opts.focusEmail — opened from the email banner: land on the email field. Works from any view: if the
+   profile card is not on screen (module / reference / exam view) the Dashboard is rendered first. */
+function openProfileEditor(opts){
+  opts = opts || {};
+  var card = document.getElementById('profile-card');
+  if (!card && typeof showDashboard === 'function'){ showDashboard(); card = document.getElementById('profile-card'); }
+  if (!card) return;
   var opt = ottProfileOptions();
   PF_ROLE = APP.role || ''; PF_VERTS = (APP.verticals || []).slice();
   var roleCards = opt.roles.map(function(o){
@@ -151,14 +165,19 @@ function openProfileEditor(){
     return '<div class="' + o.cls + (PF_VERTS.indexOf(o.value) >= 0 ? ' selected' : '') + '" onclick="pfToggleVert(this,\'' + o.value + '\')">' + o.html + '</div>';
   }).join('');
   card.innerHTML = '<div class="pc-title" style="margin-bottom:0.85rem;">✎ Edit Your Profile</div>'
+    + '<form class="pc-fields" autocomplete="on" onsubmit="saveProfileEdits();return false;">'
+    +   '<div><label class="form-label" for="pf-name">Your Name</label><input class="pc-input" id="pf-name" name="name" type="text" autocomplete="name" value="' + ottProfileEsc(APP.name || '') + '" placeholder="e.g. Jordan Rivera" /></div>'
+    +   '<div><label class="form-label" for="pf-email">Your Work Email</label><input class="pc-input" id="pf-email" name="email" type="email" autocomplete="email" inputmode="email" value="' + ottProfileEsc(APP.email || '') + '" placeholder="name@company.com" /></div>'
+    + '</form>'
     + (roleCards ? '<label class="form-label">Your Role</label><div class="pc-grid">' + roleCards + '</div>' : '')
     + '<label class="form-label">Your Primary Verticals <span style="font-weight:400;text-transform:none;">(select all that apply)</span></label>'
-    + '<div class="pc-note" id="pc-note">⚠️ Please select your role and at least one vertical.</div>'
+    + '<div class="pc-note" id="pc-note">⚠️ Please enter your name and a valid work email, select your role, and choose at least one vertical.</div>'
     + '<div class="pc-grid">' + vertCards + '</div>'
     + '<div class="pc-actions"><button class="btn btn-primary btn-sm" onclick="saveProfileEdits()">Save changes</button>'
     + '<button class="btn btn-secondary btn-sm" onclick="showDashboard()">Cancel</button></div>'
-    + '<p class="pc-hint">Shared across all your training dashboards. Your role and verticals appear on your certificate and completion record.</p>';
+    + '<p class="pc-hint">One profile, shared across all your training dashboards. Your name, role, and verticals appear on your certificate and completion record; your work email is used for training updates and release reminders.</p>';
   card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (opts.focusEmail){ var em = document.getElementById('pf-email'); if (em) setTimeout(function(){ em.focus(); }, 50); }
 }
 function pfSetRole(el, r){ el.parentNode.querySelectorAll('[onclick^="pfSetRole("]').forEach(function(c){ c.classList.remove('selected'); }); el.classList.add('selected'); PF_ROLE = r; }
 function pfToggleVert(el, v){ el.classList.toggle('selected'); PF_VERTS = PF_VERTS.indexOf(v) >= 0 ? PF_VERTS.filter(function(x){ return x !== v; }) : PF_VERTS.concat([v]); }
@@ -169,16 +188,21 @@ function ottProfileToast(msg){
 }
 function saveProfileEdits(){
   var note = document.getElementById('pc-note');
-  if (!PF_ROLE || PF_VERTS.length === 0){ if (note) note.classList.add('on'); return; }
+  var nextName = ((document.getElementById('pf-name') || {}).value || '').trim();
+  var nextEmail = ((document.getElementById('pf-email') || {}).value || '').trim();
+  if (!nextName || !nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail) || !PF_ROLE || PF_VERTS.length === 0){ if (note) note.classList.add('on'); return; }
   var prev = (APP.verticals || []).slice().sort().join(','), next = PF_VERTS.slice().sort().join(',');
   var vertsChanged = prev !== next, roleChanged = PF_ROLE !== APP.role;
+  var identityChanged = nextName !== (APP.name || '') || nextEmail !== (APP.email || '');
   var beh = OTT_PROFILE_BEHAVIOR[ottProfileDash()] || {};
-  APP.role = PF_ROLE; APP.verticals = PF_VERTS.slice();
-  var msg = vertsChanged ? (beh.apply ? beh.apply() : '✅ Profile updated.') : (roleChanged ? '✅ Role updated.' : '');
-  if (typeof ottWriteProfile === 'function') ottWriteProfile({ name: APP.name, role: APP.role, verticals: APP.verticals });   // shared: every dashboard follows on its next load
+  APP.name = nextName; APP.email = nextEmail; APP.role = PF_ROLE; APP.verticals = PF_VERTS.slice();
+  var msg = vertsChanged ? (beh.apply ? beh.apply() : '✅ Profile updated.') : (roleChanged || identityChanged ? '✅ Profile updated.' : '');
+  if (typeof ottWriteProfile === 'function') ottWriteProfile({ name: APP.name, email: APP.email, role: APP.role, verticals: APP.verticals });   // shared: every dashboard follows on its next load (a rename follows into every record)
   saveState();
+  var hdr = document.getElementById('header-username'); if (hdr) hdr.textContent = APP.name;
   showDashboard();
-  ottProfileToast(msg + (vertsChanged || roleChanged ? ' Applies to all your training dashboards.' : ''));
+  if (typeof updateProfileEmailBanner === 'function') updateProfileEmailBanner();
+  ottProfileToast(msg + (msg ? ' Applies to all your training dashboards.' : ''));
 }
 /* Fundamentals only: optional retake of Module 3 + Final Exam after a vertical change (user-initiated). */
 function ottRetakeModule3(){
