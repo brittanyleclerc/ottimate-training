@@ -283,6 +283,9 @@ body {
   align-items: center;
   gap: 1rem;
 }
+.cert-earned-card.attested { background: var(--orange-light); color: #7D4C00; border: 1.5px solid var(--orange); }
+.cert-earned-card.verified { background: var(--green-light); color: #1a6e3c; border: 1.5px solid var(--green); }
+.cert-earned-card.attested .cert-earned-sub, .cert-earned-card.verified .cert-earned-sub { opacity: 0.85; }
 .cert-earned-icon { font-size: 2rem; flex-shrink: 0; }
 .cert-earned-title { font-size: 0.95rem; font-weight: 700; }
 .cert-earned-sub { font-size: 0.78rem; opacity: 0.7; margin-top: 0.1rem; }
@@ -567,58 +570,39 @@ function setNote(card, cls, text) {
   const note = document.createElement('div'); note.className = cls; note.textContent = text;
   const status = card.querySelector('.card-status'); (status || card).insertAdjacentElement(status ? 'beforebegin' : 'beforeend', note);
 }
+/* ── Track registry — ONE place to add a dashboard (CONSISTENCY-GUIDE §5). Drives the state reads, the Certifications
+   Earned strip, and the overall / per-level progress bars. (Each track card in the markup is still its own block below.) */
+const PORTAL_TRACKS = [
+  { key: 'fund', stateKey: 'ottimate_fundamentals_state', level: 1, modules: 4, icon: '🎓', title: 'Fundamentals',                          earnedTitle: 'Fundamentals Certified' },
+  { key: 'd101', stateKey: 'ottimate_demo_state',         level: 1, modules: 3, icon: '🏅', title: 'Demo 101 — Core AP & Statements',      earnedTitle: 'Demo 101 Certified — Core AP & Statements' },
+  { key: 'd102', stateKey: 'ottimate_d102_state',         level: 1, modules: 4, icon: '🏅', title: 'Demo 102 — Vendor Pay & Basic Reports', earnedTitle: 'Demo 102 Certified — Vendor Pay & Basic Reports' },
+  { key: 'pm',   stateKey: 'ottimate_pomatch_state',      level: 2, modules: 5, icon: '🎖️', title: 'Demo 201 — PO Match',                  earnedTitle: 'Demo 201 Certified — PO Match' },
+];
 function getState() {
   const read = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; } };
-
-  const fund = read('ottimate_fundamentals_state');
-  const d101 = read('ottimate_demo_state');
-  const d102 = read('ottimate_d102_state');
-  const pm   = read('ottimate_pomatch_state');
-
-  return {
-    fund: {
-      name:    fund && fund.name    || '',
-      started: !!(fund && (fund.modulesDone && fund.modulesDone.length > 0)),
-      passed:  !!(fund && fund.examPassed),
-      modules: fund && fund.modulesDone ? fund.modulesDone.length : 0,
-      score:   fund && fund.examScore != null ? fund.examScore : null,
-      certDate: fund && fund.certDate || '',
-      certVerts: (fund && Array.isArray(fund.certVerticals) && fund.certVerticals.length) ? fund.certVerticals : []
-    },
-    d101: {
-      name:    d101 && d101.name    || '',
-      started: !!(d101 && (d101.modulesDone && d101.modulesDone.length > 0)),
-      passed:  !!(d101 && d101.examPassed),
-      modules: d101 && d101.modulesDone ? d101.modulesDone.length : 0,
-      score:   d101 && d101.examScore != null ? d101.examScore : null,
-      certDate: d101 && d101.certDate || '',
-      certVerts: (d101 && Array.isArray(d101.certVerticals) && d101.certVerticals.length) ? d101.certVerticals : []
-    },
-    d102: {
-      name:    d102 && d102.name    || '',
-      started: !!(d102 && (d102.modulesDone && d102.modulesDone.length > 0)),
-      passed:  !!(d102 && d102.examPassed),
-      modules: d102 && d102.modulesDone ? d102.modulesDone.length : 0,
-      score:   d102 && d102.examScore != null ? d102.examScore : null,
-      certDate: d102 && d102.certDate || '',
-      certVerts: (d102 && Array.isArray(d102.certVerticals) && d102.certVerticals.length) ? d102.certVerticals : []
-    },
-    pm: {
-      name:    pm && pm.name    || '',
-      started: !!(pm && (pm.modulesDone && pm.modulesDone.length > 0)),
-      passed:  !!(pm && pm.examPassed),
-      modules: pm && pm.modulesDone ? pm.modulesDone.length : 0,
-      score:   pm && pm.examScore != null ? pm.examScore : null,
-      certDate: pm && pm.certDate || '',
-      certVerts: (pm && Array.isArray(pm.certVerticals) && pm.certVerticals.length) ? pm.certVerticals : []
-    }
-  };
+  const s = {};
+  PORTAL_TRACKS.forEach(t => {
+    const r = read(t.stateKey);
+    // certVerticals is the snapshot taken when the exam was passed; records certified before that field existed
+    // (e.g. Demo 102 before 2026-09-10) fall back to the verticals on the record — the best available evidence.
+    const certVerts = (r && Array.isArray(r.certVerticals) && r.certVerticals.length) ? r.certVerticals
+                    : (r && r.examPassed && Array.isArray(r.verticals) && r.verticals.length) ? r.verticals : [];
+    s[t.key] = {
+      name:     r && r.name || '',
+      started:  !!(r && r.modulesDone && r.modulesDone.length > 0),
+      passed:   !!(r && r.examPassed),
+      modules:  r && r.modulesDone ? r.modulesDone.length : 0,
+      score:    r && r.examScore != null ? r.examScore : null,
+      certDate: r && r.certDate || '',
+      certVerts,
+      attested: attestation(t.stateKey)
+    };
+  });
+  return s;
 }
 
 function updatePortal() {
   const s = getState();
-  s.d101.attested = attestation('ottimate_demo_state');
-  s.d102.attested = attestation('ottimate_d102_state');
   const d101Complete = s.d101.passed || !!s.d101.attested;
   const d102Complete = s.d102.passed || !!s.d102.attested;
 
@@ -631,11 +615,10 @@ function updatePortal() {
 
   // Progress
   // ── Progress bars: overall (top) + one per level. Each step = a module or a final exam; certs are the exams. ──
-  const TRACKS = { fund: { modules: 4, level: 1 }, d101: { modules: 3, level: 1 }, d102: { modules: 4, level: 1 }, pm: { modules: 5, level: 2 } };
-  const attestedCount = [s.d101.attested, s.d102.attested].filter(Boolean).length;
-  const progress = (keys) => {
+  const attestedCount = PORTAL_TRACKS.filter(t => !s[t.key].passed && s[t.key].attested).length;
+  const progress = (tracks) => {
     let done = 0, total = 0, certs = 0, certsTotal = 0;
-    keys.forEach(k => { const t = s[k], m = TRACKS[k].modules; total += m + 1; certsTotal++; done += Math.min(t.modules || 0, m) + (t.passed ? 1 : 0); if (t.passed) certs++; });
+    tracks.forEach(tr => { const t = s[tr.key], m = tr.modules; total += m + 1; certsTotal++; done += Math.min(t.modules || 0, m) + (t.passed ? 1 : 0); if (t.passed) certs++; });
     return { pct: total ? Math.round(done / total * 100) : 0, done, total, certs, certsTotal };
   };
   const setBar = (fillId, labelId, p, prefix) => {
@@ -643,11 +626,10 @@ function updatePortal() {
     fill.style.width = p.pct + '%';
     label.textContent = prefix + p.certs + ' of ' + p.certsTotal + ' certification' + (p.certsTotal === 1 ? '' : 's') + ' · ' + p.done + ' of ' + p.total + ' steps complete';
   };
-  const overall = progress(['fund', 'd101', 'd102', 'pm']);
+  const overall = progress(PORTAL_TRACKS);
   document.getElementById('portal-progress-fill').style.width = overall.pct + '%';
   document.getElementById('portal-progress-label').textContent = 'Overall: ' + overall.certs + ' of ' + overall.certsTotal + ' certifications earned · ' + overall.done + ' of ' + overall.total + ' steps complete' + (attestedCount ? ' · ' + attestedCount + ' self-attested' : '');
-  setBar('lvl1-fill', 'lvl1-label', progress(['fund', 'd101', 'd102']), '');
-  setBar('lvl2-fill', 'lvl2-label', progress(['pm']), '');
+  [1, 2].forEach(lvl => setBar('lvl' + lvl + '-fill', 'lvl' + lvl + '-label', progress(PORTAL_TRACKS.filter(t => t.level === lvl)), ''));
 
   // ── Fundamentals card ──
   const cardFund = document.getElementById('card-fund');
@@ -769,38 +751,33 @@ function updatePortal() {
 
   // ── Certs earned section ──
   const VERT_LABELS = { restaurants:'Restaurants', hospitality:'Hospitality', retail:'Retail', grocery:'Grocery', seniorliving:'Senior Living', healthcare:'Healthcare' };
+  // Every track is treated the same: a real cert → "Earned <date> · for <verticals>"; a self-attested prerequisite
+  // (confirmed bypass) → a distinct amber card with the attestation instead of earned details; verified by Enablement → green.
   const earnedSub = (t) => (t.certDate ? ('Earned ' + t.certDate) : 'Certified') + (t.certVerts.length ? (' · for ' + t.certVerts.map(v => VERT_LABELS[v] || v).join(', ')) : '');
   const earned = [];
-  if (s.fund.passed) earned.push({
-    icon: '🎓', title: 'Fundamentals Certified',
-    sub: earnedSub(s.fund)
-  });
-  if (s.d101.passed) earned.push({
-    icon: '🏅', title: 'Demo 101 Certified — Core AP & Statements',
-    sub: earnedSub(s.d101)
-  });
-  if (s.d102.passed) earned.push({
-    icon: '🏅', title: 'Demo 102 Certified — Vendor Pay & Basic Reports',
-    sub: earnedSub(s.d102)
-  });
-  if (s.pm.passed) earned.push({
-    icon: '🎖️', title: 'Demo 201 Certified — PO Match',
-    sub: earnedSub(s.pm)
+  PORTAL_TRACKS.forEach(tr => {
+    const t = s[tr.key];
+    if (t.passed) earned.push({ cls: '', icon: tr.icon, title: tr.earnedTitle, sub: earnedSub(t), title_attr: '' });
+    else if (t.attested) earned.push({
+      cls: t.attested.verified ? ' verified' : ' attested',
+      icon: t.attested.verified ? '✅' : '☑️',
+      title: tr.title.split(' — ')[0] + ' — Completed Elsewhere',
+      sub: (tr.title.includes(' — ') ? tr.title.split(' — ').slice(1).join(' — ') + ' · ' : '') + (t.attested.verified ? 'Verified by Sales Enablement' : 'Self-attested') + ' · confirmed when you opened ' + t.attested.viaLabel + (t.attested.at ? ' ' + t.attested.at : ''),
+      title_attr: t.attested.title
+    });
   });
 
   const certSection = document.getElementById('cert-section');
   const certGrid = document.getElementById('cert-earned-grid');
-  if (earned.length > 0) {
-    certSection.style.display = '';
-    certGrid.innerHTML = earned.map(c => `
-      <div class="cert-earned-card">
+  certSection.style.display = earned.length > 0 ? '' : 'none';
+  certGrid.innerHTML = earned.map(c => `
+      <div class="cert-earned-card${c.cls}" title="${c.title_attr}">
         <div class="cert-earned-icon">${c.icon}</div>
         <div>
           <div class="cert-earned-title">${c.title}</div>
           <div class="cert-earned-sub">${c.sub}</div>
         </div>
       </div>`).join('');
-  }
 }
 
 function confirmReset() {
