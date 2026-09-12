@@ -1025,6 +1025,8 @@ function ottReadProfile(){ try { var p = JSON.parse(localStorage.getItem(OTT_PRO
 function ottWriteProfile(p){
   var cur = ottReadProfile() || {};
   var next = { name: p.name || cur.name || '', email: String(p.email || cur.email || '').trim(), role: ottNormalizeRole(p.role || cur.role || ''), verticals: Array.isArray(p.verticals) ? p.verticals.slice() : (cur.verticals || []), updatedAt: Date.now() };
+  // certClaims — self-reported certificate details for self-attested prerequisites (portal, §11). Preserved, never rebuilt here.
+  var claims = (p.certClaims && typeof p.certClaims === 'object') ? p.certClaims : cur.certClaims; if (claims) next.certClaims = claims;
   try { localStorage.setItem(OTT_PROFILE_KEY, JSON.stringify(next)); } catch(e){}
   // A rename from the profile editor must follow the same person into every dashboard record, otherwise the
   // records stop matching the profile (the overlay in ottMigrateState only ever touches records with the
@@ -1056,6 +1058,7 @@ function ottBootstrapProfile(preferKey){
    attached to the new name. */
 function ottResetAllProgress(){
   try { Object.keys(OTT_STATE_DEFAULTS).forEach(function(k){ localStorage.removeItem(k); }); localStorage.removeItem(OTT_PROFILE_KEY); } catch(e){}
+  try { if (window.indexedDB) indexedDB.deleteDatabase('ottimate_training'); } catch(e){}   // uploaded certificates (portal)
 }
 function ottMigrateState(key){
   var raw = null;

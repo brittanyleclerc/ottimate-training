@@ -287,6 +287,19 @@ body {
 .cert-earned-card.verified { background: var(--green-light); color: #1a6e3c; border: 1.5px solid var(--green); }
 .cert-earned-card.attested .cert-earned-sub, .cert-earned-card.verified .cert-earned-sub { opacity: 0.85; }
 .cert-earned-icon { font-size: 2rem; flex-shrink: 0; }
+.cert-earned-body { flex: 1; min-width: 0; }
+.cert-earned-card [hidden] { display: none !important; }
+.cert-earned-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+.cert-earned-actions .ce-btn { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; text-decoration: none; font-family: inherit; border: 1.5px solid rgba(255,255,255,0.55); color: #fff; background: rgba(255,255,255,0.12); }
+.cert-earned-actions .ce-btn:hover { background: rgba(255,255,255,0.22); }
+.cert-earned-card.attested .ce-btn, .cert-earned-card.verified .ce-btn { border-color: currentColor; color: inherit; background: rgba(255,255,255,0.55); }
+.cert-earned-card.attested .ce-btn:hover, .cert-earned-card.verified .ce-btn:hover { background: #fff; }
+.cert-earned-actions .ce-btn.ce-quiet { border-color: transparent; background: transparent; opacity: 0.75; }
+.cert-earned-actions .ce-btn.ce-quiet:hover { opacity: 1; background: rgba(255,255,255,0.35); }
+.cert-earned-idform { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; align-items: center; }
+.cert-earned-idform input { flex: 1; min-width: 220px; font: inherit; font-size: 0.78rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 0.35rem 0.55rem; border: 1.5px solid var(--orange); border-radius: 6px; color: var(--gray5); background: #fff; text-transform: uppercase; }
+.cert-earned-idform .ce-err { flex-basis: 100%; font-size: 0.72rem; color: #B03A2E; }
+.cert-earned-file { font-size: 0.72rem; opacity: 0.8; margin-top: 0.3rem; }
 .cert-earned-title { font-size: 0.95rem; font-weight: 700; }
 .cert-earned-sub { font-size: 0.78rem; opacity: 0.7; margin-top: 0.1rem; }
 .cert-earned-empty {
@@ -520,7 +533,7 @@ body {
 // carries no injected modules): a confirmed bypass on Demo 102 attests Demo 101; on PO Match attests Demo 101 + 102.
 // Read-only; examPassed always wins; attested is never counted as an earned certification.
 const PREREQS = { ottimate_d102_state: ['ottimate_demo_state'], ottimate_pomatch_state: ['ottimate_demo_state', 'ottimate_d102_state'] };
-const DASH_LABEL = { ottimate_demo_state: 'Demo 101', ottimate_d102_state: 'Demo 102', ottimate_pomatch_state: 'Demo 201 — PO Match' };
+const DASH_LABEL = { ottimate_fundamentals_state: 'Fundamentals', ottimate_demo_state: 'Demo 101', ottimate_d102_state: 'Demo 102', ottimate_pomatch_state: 'Demo 201 — PO Match' };
 function attestation(key) {
   const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e) { return null; } };
   const own = read(key); if (own && own.examPassed === true) return null;
@@ -542,6 +555,76 @@ function bypassInfo(key) {
   return null;
 }
 /* Rejected bypass → dismissible notice at the top of the portal (the dashboard's gate explains it too). */
+/* ── Certificate evidence for self-attested prerequisites (CONSISTENCY-GUIDE §11) ──
+   Two independent things a rep can add on a "Completed Elsewhere" card:
+   1. a Certificate ID from a certificate this platform issued (printed in its footer) → validated offline against the
+      rep's name (cert-id-module.js) and stored on the shared profile as certClaims[stateKey] → the card shows the real
+      earned details ("Earned May 4, 2026 · for Senior Living, Healthcare · ☑ Certificate ID confirmed");
+   2. an upload of the certificate itself (image/PDF ≤ 5 MB) → stored ONLY in this browser (IndexedDB) → the card's
+      button becomes "View My Certificate". Neither one is proof; both are sent to Enablement (event=bypass_details)
+      so the approve / reject decision is better informed. "Not you? / Reset" clears both. */
+const CERT_DB = 'ottimate_training', CERT_STORE = 'certificates', CERT_MAX_BYTES = 5 * 1024 * 1024;
+function certDb() { return new Promise((res, rej) => { try { const r = indexedDB.open(CERT_DB, 1); r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(CERT_STORE)) r.result.createObjectStore(CERT_STORE); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); }
+function certFileOp(mode, fn) { return certDb().then(db => new Promise((res, rej) => { const tx = db.transaction(CERT_STORE, mode); const req = fn(tx.objectStore(CERT_STORE)); tx.oncomplete = () => res(req && req.result); tx.onerror = () => rej(tx.error); })).catch(() => undefined); }
+const certFileGet  = (key) => certFileOp('readonly', st => st.get(key));
+const certFileKeys = ()    => certFileOp('readonly', st => st.getAllKeys()).then(k => k || []);
+const certFilePut  = (key, rec) => certFileOp('readwrite', st => st.put(rec, key));
+const certFileDel  = (key) => certFileOp('readwrite', st => st.delete(key));
+function readClaims() { try { return (JSON.parse(localStorage.getItem('ottimate_profile') || 'null') || {}).certClaims || {}; } catch (e) { return {}; } }
+function writeClaim(stateKey, claim) {
+  try { const p = JSON.parse(localStorage.getItem('ottimate_profile') || 'null') || {}; p.certClaims = p.certClaims || {}; if (claim) p.certClaims[stateKey] = claim; else delete p.certClaims[stateKey]; localStorage.setItem('ottimate_profile', JSON.stringify(p)); } catch (e) {}
+}
+/* Tell Enablement (Make) that evidence was added for a bypass — only when the webhook is configured. */
+function notifyBypassDetails(stateKey, extra) {
+  if (typeof OTT_BYPASS_WEBHOOK_URL === 'undefined' || !OTT_BYPASS_WEBHOOK_URL) return;
+  const att = attestation(stateKey); if (!att) return;
+  const via = Object.keys(PREREQS).find(k => PREREQS[k].includes(stateKey) && (() => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); return o && o.bypassed === true && o.bypassId; } catch (e) { return false; } })());
+  if (!via) return;
+  try {
+    const o = JSON.parse(localStorage.getItem(via) || 'null'); const p = JSON.parse(localStorage.getItem('ottimate_profile') || 'null') || {};
+    const q = new URLSearchParams(Object.assign({ event: 'bypass_details', id: o.bypassId, name: p.name || '', email: p.email || '', dashboard: DASH_LABEL[via] || via, prereq: DASH_LABEL[stateKey] || stateKey, time: new Date().toISOString() }, extra));
+    fetch(OTT_BYPASS_WEBHOOK_URL + (OTT_BYPASS_WEBHOOK_URL.indexOf('?') >= 0 ? '&' : '?') + q.toString(), { method: 'GET', mode: 'no-cors', keepalive: true });
+  } catch (e) {}
+}
+function certIdFormToggle(stateKey, show) {
+  const card = document.querySelector('.cert-earned-card[data-key="' + stateKey + '"]'); if (!card) return;
+  const f = card.querySelector('.cert-earned-idform'); if (f) f.hidden = !show;
+  if (show) { const i = f && f.querySelector('input'); if (i) setTimeout(() => i.focus(), 30); }
+}
+function certIdSave(stateKey) {
+  const card = document.querySelector('.cert-earned-card[data-key="' + stateKey + '"]'); if (!card) return;
+  const input = card.querySelector('.cert-earned-idform input'), err = card.querySelector('.cert-earned-idform .ce-err');
+  let name = ''; try { name = (JSON.parse(localStorage.getItem('ottimate_profile') || 'null') || {}).name || ''; } catch (e) {}
+  const r = ottCertParseId(input.value, name);
+  if (!r.ok) { err.textContent = r.reason; return; }
+  if (r.stateKey !== stateKey) { err.textContent = 'That ID is for ' + (DASH_LABEL[r.stateKey] || 'a different track') + ', not ' + (DASH_LABEL[stateKey] || 'this one') + '.'; return; }
+  writeClaim(stateKey, { id: input.value.trim().toUpperCase(), date: r.dateLabel, verticals: r.verticals, addedAt: Date.now() });
+  notifyBypassDetails(stateKey, { cert_id: input.value.trim().toUpperCase(), cert_date: r.dateLabel, cert_verticals: r.verticals.join(', ') });
+  updatePortal();
+}
+function certIdRemove(stateKey) { if (!confirm('Remove the certificate ID from this card?')) return; writeClaim(stateKey, null); updatePortal(); }
+function certUploadPick(stateKey) { const inp = document.querySelector('.cert-earned-card[data-key="' + stateKey + '"] input[type=file]'); if (inp) inp.click(); }
+function certUploadChange(stateKey, inp) {
+  const f = inp.files && inp.files[0]; if (!f) return;
+  if (!/^(image\/(png|jpe?g|webp|gif)|application\/pdf)$/.test(f.type)) { alert('Please upload an image (PNG/JPG) or a PDF of your certificate.'); inp.value = ''; return; }
+  if (f.size > CERT_MAX_BYTES) { alert('That file is larger than 5 MB. Please upload a smaller image or PDF.'); inp.value = ''; return; }
+  certFilePut(stateKey, { blob: f, type: f.type, name: f.name, size: f.size, addedAt: Date.now() }).then(() => { inp.value = ''; notifyBypassDetails(stateKey, { has_attachment: '1', attachment_name: f.name }); updatePortal(); });
+}
+function certUploadView(stateKey) { certFileGet(stateKey).then(rec => { if (!rec || !rec.blob) { alert('No certificate is saved for this card in this browser.'); return; } const u = URL.createObjectURL(rec.blob); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); }); }
+function certUploadRemove(stateKey) { if (!confirm('Remove the uploaded certificate from this browser?')) return; certFileDel(stateKey).then(updatePortal); }
+/* After the strip renders: swap "Upload" for "View / Replace / Remove" on cards that have a stored file. */
+function refreshCertUploads() {
+  certFileKeys().then(keys => {
+    document.querySelectorAll('.cert-earned-card[data-key]').forEach(card => {
+      const key = card.getAttribute('data-key'), has = keys.includes(key);
+      card.querySelectorAll('[data-when="has-file"]').forEach(el => { el.hidden = !has; });
+      card.querySelectorAll('[data-when="no-file"]').forEach(el => { el.hidden = has; });
+      const note = card.querySelector('.cert-earned-file');
+      if (note && has) certFileGet(key).then(rec => { if (rec) note.textContent = '📎 ' + rec.name + ' · saved in this browser' + (rec.addedAt ? ' ' + new Date(rec.addedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''); });
+      else if (note) note.textContent = '';
+    });
+  });
+}
 function updateBypassRejectedBanner() {
   const banner = document.getElementById('bypass-rejected-banner'); if (!banner) return;
   const msgs = [];
@@ -573,10 +656,10 @@ function setNote(card, cls, text) {
 /* ── Track registry — ONE place to add a dashboard (CONSISTENCY-GUIDE §5). Drives the state reads, the Certifications
    Earned strip, and the overall / per-level progress bars. (Each track card in the markup is still its own block below.) */
 const PORTAL_TRACKS = [
-  { key: 'fund', stateKey: 'ottimate_fundamentals_state', level: 1, modules: 4, icon: '🎓', title: 'Fundamentals',                          earnedTitle: 'Fundamentals Certified' },
-  { key: 'd101', stateKey: 'ottimate_demo_state',         level: 1, modules: 3, icon: '🏅', title: 'Demo 101 — Core AP & Statements',      earnedTitle: 'Demo 101 Certified — Core AP & Statements' },
-  { key: 'd102', stateKey: 'ottimate_d102_state',         level: 1, modules: 4, icon: '🏅', title: 'Demo 102 — Vendor Pay & Basic Reports', earnedTitle: 'Demo 102 Certified — Vendor Pay & Basic Reports' },
-  { key: 'pm',   stateKey: 'ottimate_pomatch_state',      level: 2, modules: 5, icon: '🎖️', title: 'Demo 201 — PO Match',                  earnedTitle: 'Demo 201 Certified — PO Match' },
+  { key: 'fund', stateKey: 'ottimate_fundamentals_state', href: 'fundamentals-training.html', level: 1, modules: 4, icon: '🎓', title: 'Fundamentals',                          earnedTitle: 'Fundamentals Certified' },
+  { key: 'd101', stateKey: 'ottimate_demo_state',         href: 'demo-training.html',         level: 1, modules: 3, icon: '🏅', title: 'Demo 101 — Core AP & Statements',      earnedTitle: 'Demo 101 Certified — Core AP & Statements' },
+  { key: 'd102', stateKey: 'ottimate_d102_state',         href: 'demo102.html',               level: 1, modules: 4, icon: '🏅', title: 'Demo 102 — Vendor Pay & Basic Reports', earnedTitle: 'Demo 102 Certified — Vendor Pay & Basic Reports' },
+  { key: 'pm',   stateKey: 'ottimate_pomatch_state',      href: 'pomatch.html',               level: 2, modules: 5, icon: '🎖️', title: 'Demo 201 — PO Match',                  earnedTitle: 'Demo 201 Certified — PO Match' },
 ];
 function getState() {
   const read = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; } };
@@ -754,30 +837,50 @@ function updatePortal() {
   // Every track is treated the same: a real cert → "Earned <date> · for <verticals>"; a self-attested prerequisite
   // (confirmed bypass) → a distinct amber card with the attestation instead of earned details; verified by Enablement → green.
   const earnedSub = (t) => (t.certDate ? ('Earned ' + t.certDate) : 'Certified') + (t.certVerts.length ? (' · for ' + t.certVerts.map(v => VERT_LABELS[v] || v).join(', ')) : '');
+  const claims = readClaims();
+  const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const earned = [];
   PORTAL_TRACKS.forEach(tr => {
     const t = s[tr.key];
-    if (t.passed) earned.push({ cls: '', icon: tr.icon, title: tr.earnedTitle, sub: earnedSub(t), title_attr: '' });
-    else if (t.attested) earned.push({
-      cls: t.attested.verified ? ' verified' : ' attested',
-      icon: t.attested.verified ? '✅' : '☑️',
-      title: tr.title.split(' — ')[0] + ' — Completed Elsewhere',
-      sub: (tr.title.includes(' — ') ? tr.title.split(' — ').slice(1).join(' — ') + ' · ' : '') + (t.attested.verified ? 'Verified by Sales Enablement' : 'Self-attested') + ' · confirmed when you opened ' + t.attested.viaLabel + (t.attested.at ? ' ' + t.attested.at : ''),
-      title_attr: t.attested.title
-    });
+    if (t.passed) earned.push({ key: tr.stateKey, cls: '', icon: tr.icon, title: tr.earnedTitle, sub: earnedSub(t), title_attr: '',
+      actions: '<a class="ce-btn" href="' + tr.href + '#certificate">🏆 View My Certificate</a>' });
+    else if (t.attested) {
+      const claim = claims[tr.stateKey];
+      const trackName = tr.title.includes(' — ') ? tr.title.split(' — ').slice(1).join(' — ') : '';
+      const attestLine = (t.attested.verified ? 'Verified by Sales Enablement' : 'Self-attested') + ' · confirmed when you opened ' + t.attested.viaLabel + (t.attested.at ? ' ' + t.attested.at : '');
+      const sub = claim
+        ? 'Earned ' + esc(claim.date) + (claim.verticals && claim.verticals.length ? ' · for ' + claim.verticals.map(v => VERT_LABELS[v] || v).join(', ') : '') + ' · ☑ Certificate ID confirmed' + (t.attested.verified ? ' · ✓ Verified by Sales Enablement' : '')
+        : (trackName ? trackName + ' · ' : '') + attestLine;
+      const idBtn = claim
+        ? '<button type="button" class="ce-btn ce-quiet" title="' + esc(claim.id) + '" onclick="certIdRemove(\'' + tr.stateKey + '\')">✕ Remove ID</button>'
+        : '<button type="button" class="ce-btn" onclick="certIdFormToggle(\'' + tr.stateKey + '\', true)">🔑 Enter Certificate ID</button>';
+      const fileBtns = '<button type="button" class="ce-btn" data-when="no-file" onclick="certUploadPick(\'' + tr.stateKey + '\')">📎 Upload Certificate</button>'
+        + '<button type="button" class="ce-btn" data-when="has-file" hidden onclick="certUploadView(\'' + tr.stateKey + '\')">🏆 View My Certificate</button>'
+        + '<button type="button" class="ce-btn ce-quiet" data-when="has-file" hidden onclick="certUploadPick(\'' + tr.stateKey + '\')">Replace</button>'
+        + '<button type="button" class="ce-btn ce-quiet" data-when="has-file" hidden onclick="certUploadRemove(\'' + tr.stateKey + '\')">Remove</button>'
+        + '<input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" hidden onchange="certUploadChange(\'' + tr.stateKey + '\', this)">';
+      earned.push({ key: tr.stateKey, cls: t.attested.verified ? ' verified' : ' attested', icon: t.attested.verified ? '✅' : '☑️',
+        title: tr.title.split(' — ')[0] + ' — Completed Elsewhere', sub, title_attr: (claim ? attestLine + '. ' : '') + t.attested.title,
+        actions: idBtn + fileBtns
+          + '<div class="cert-earned-idform" hidden><input type="text" placeholder="OTT-XXXX-YYYYMMDD-XX-XXXX" spellcheck="false" onkeydown="if(event.key===\'Enter\'){certIdSave(\'' + tr.stateKey + '\');}">'
+          + '<button type="button" class="ce-btn" onclick="certIdSave(\'' + tr.stateKey + '\')">Save</button><button type="button" class="ce-btn ce-quiet" onclick="certIdFormToggle(\'' + tr.stateKey + '\', false)">Cancel</button><div class="ce-err"></div></div>'
+          + '<div class="cert-earned-file"></div>' });
+    }
   });
 
   const certSection = document.getElementById('cert-section');
   const certGrid = document.getElementById('cert-earned-grid');
   certSection.style.display = earned.length > 0 ? '' : 'none';
   certGrid.innerHTML = earned.map(c => `
-      <div class="cert-earned-card${c.cls}" title="${c.title_attr}">
+      <div class="cert-earned-card${c.cls}" data-key="${c.key}" title="${esc(c.title_attr)}">
         <div class="cert-earned-icon">${c.icon}</div>
-        <div>
+        <div class="cert-earned-body">
           <div class="cert-earned-title">${c.title}</div>
           <div class="cert-earned-sub">${c.sub}</div>
+          <div class="cert-earned-actions">${c.actions}</div>
         </div>
       </div>`).join('');
+  refreshCertUploads();
 }
 
 function confirmReset() {
@@ -785,6 +888,7 @@ function confirmReset() {
     ['ottimate_fundamentals_state','ottimate_demo_state','ottimate_d102_state','ottimate_pomatch_state','ottimate_profile'].forEach(k => {
       try { localStorage.removeItem(k); } catch(e) {}
     });
+    try { if (window.indexedDB) indexedDB.deleteDatabase('ottimate_training'); } catch(e) {}   // uploaded certificates
     location.reload();
   }
 }

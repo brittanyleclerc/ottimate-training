@@ -126,6 +126,8 @@ Build the *decision* scenario first, because scenario 1's email needs its webhoo
 6. **Save** and turn the scenario **ON**.
 7. Test it: open the test URL from step 2 again in a browser → within a few seconds you should have a row in `log` and the email in your inbox. Click **Approve** in that email → the confirmation page appears and the row's `status` becomes `approved`. Delete the test row afterwards (or leave it — `test123` will never match a real browser).
 
+**Optional — evidence updates (`event=bypass_details`).** The same webhook also receives a follow-up when a rep adds evidence on the portal's "Completed Elsewhere" card: `event=bypass_details`, `id` (the same bypass id), `prereq` (which prerequisite), and either `cert_id` + `cert_date` + `cert_verticals` (a validated Certificate ID from a certificate this platform issued) or `has_attachment=1` + `attachment_name` (they uploaded their certificate — the file stays in their browser; it is not sent). To use it: add a **Router** after the webhook — branch `event = bypass` → the Add-a-Row + email steps above; branch `event = bypass_details` → **Google Sheets → Search Rows** (id) → **Update a Row** writing `cert_id` / `cert_date` / `cert_verticals` / `has_attachment` into extra columns (add them to `log` after column K), optionally a short FYI email. Or ignore the branch entirely — nothing breaks.
+
 > Once `OTT_BYPASS_WEBHOOK_URL` is set on the site, the dashboards stop sending the old EmailJS bypass email (it remains the fallback only while the URL is blank), so you get exactly one email per bypass.
 
 ## 4. Turn it on in the site
