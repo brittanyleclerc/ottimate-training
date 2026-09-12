@@ -199,6 +199,16 @@ Rolled into all 4 dashboards 2026-09-11. Before: Fundamentals / Demo 101 shared 
 - **Evidence on self-attested cards (portal, Certifications Earned):** "🔑 Enter Certificate ID" → validated offline (`ottCertParseId`: format, checksum vs. the profile name, and the ID must belong to that track) → stored on the shared profile as `certClaims[stateKey]` (`ottWriteProfile` preserves it) → the card shows the real earned details "Earned May 4, 2026 · for Senior Living, Healthcare · ☑ Certificate ID confirmed". "📎 Upload Certificate" (image/PDF ≤ 5 MB) → stored **only in that browser** (IndexedDB `ottimate_training/certificates`) → the button becomes "🏆 View My Certificate" (+ Replace / Remove). Neither is proof; both notify Enablement (`event=bypass_details` with `cert_id`/`cert_date`/`cert_verticals` or `has_attachment`) when the Make webhook is configured. Reset (portal + `ottResetAllProgress`) drops the claims with the profile and deletes the IndexedDB store.
 - Adding a dashboard: an `OTT_CERT_CONFIG` entry + an `OTT_CERT_CODES` code + a `PORTAL_TRACKS` row.
 
+## 12. Temporary preview gate (hold a dashboard back for some roles)  → `preview-gate-module.js` + `inject-previewgate.js <file>`
+
+Added 2026-09-11 because an AE completed Demo 201 — PO Match before its release. `OTT_PREVIEW_GATES` in the module holds ONE entry per held-back dashboard: `{ roles: ['AE','SDR'], label, title, message }` (roles are the shared-profile keys — AE, SE, SDR, CSM, MGR, PARTNER, OTHER). Injected into the portal and all four dashboards; the drift-check verifies it.
+
+- **Portal:** the track card is locked with **🔍 In final review** / *Coming soon*; clicking it opens the popup (`ottPreviewModal`) instead of navigating.
+- **Dashboard:** `ottPreviewBlocked(key)` is checked at the top of `init()` — **before** the prerequisite gate, so the bypass is unreachable — and shows a full-screen hold (`ottPreviewScreen`) with *Return to Training Portal*. A brand-new user has no role yet, so they reach the welcome form; picking a held-back role and clicking Begin shows the hold and withdraws the just-taken bypass (no Enablement email).
+- **Learning Path:** the track reads "In final review — you’ll be emailed when it’s released" with no links.
+- **Never blocked:** other roles, and anyone already certified on that dashboard (`examPassed`).
+- **To release:** set `roles: []` (or delete the entry) → `node _shared/inject-previewgate.js` on portal.html + the four dashboards → `check-consistency.js` → publish. The promised "you'll be emailed" is a manual step (or the Release Update Manager) — reps' emails are on the shared profile.
+
 ---
 
 ---
@@ -214,6 +224,7 @@ Rolled into all 4 dashboards 2026-09-11. Before: Fundamentals / Demo 101 shared 
 - **Profile card & editor (single source):** `profile-module.js` + `inject-profile.js <file>` — shared "👤 Your Profile" card + inline name/email/role/verticals editor; one shared `ottimate_profile` record and the unified role list (`inject-roles.js`), see §5.
 - **Email banner (single source):** `email-banner-module.js` + `inject-emailbanner.js <file>` — "add your work email" banner inside `#app-shell`, see §9. Run AFTER `inject-profile.js`.
 - **Bypass verification (single source, portal + dashboards):** `bypass-verify-module.js` + `inject-bypassverify.js <file>` + `bypass-verifications.json` (manual fallback feed) + `BYPASS-VERIFICATION-SETUP.md` (Make.com / Sheet setup), see §10. Run AFTER `inject-emailbanner.js`.
+- **Preview gate (portal + dashboards):** `preview-gate-module.js` + `inject-previewgate.js <file>` — hold a dashboard back for some roles until release, see §12. Run AFTER `inject-bypassverify.js`.
 - **Certificate (single source) + Certificate IDs (portal + dashboards):** `certificate-module.js` + `cert-id-module.js` + `inject-certificate.js <file>` (dashboards get both blocks, `portal.html` the ID block), see §11. Run AFTER `inject-profile.js`.
 - **Industry Verticals (single source):** `verticals-profiles.js` (canonical profiles) + `verticals-lenses.js` (per-dashboard lenses) + `verticals-module.js` (render) + `inject-verticals.js <file>`, see §7.
 - **Demo environment link (single source):** `inject-demoenv.js <file>` — adds "🖥️ Demo Environment ↗" to the sidebar RESOURCES section (directly under Reference Materials) in ALL FOUR dashboards, plus a muted access note. Persistent, identical position everywhere, opens in a new tab. URL + copy are constants at the top of the injector — edit once, re-run on each dashboard. Current URL: https://demo-2026-api.plateiq.com/demoapp/ (also in both PO Match Docs .md sources).
@@ -223,5 +234,5 @@ Rolled into all 4 dashboards 2026-09-11. Before: Fundamentals / Demo 101 shared 
 ### Re-sync workflow (single source → all dashboards)
 1. Edit the canonical source (tokens, `Competitive Battlecards/index.html`, or a `_shared` module).
 2. Regenerate if needed: `node _shared/sync-battlecards.js`.
-3. Roll to dashboards: `node _shared/inject-battlecards.js <file>` / `inject-learningpath.js <file>` / `inject-statemigrate.js <file>` / `inject-profile.js <file>` / `inject-emailbanner.js <file>` / `inject-bypassverify.js <file>` / `inject-certificate.js <file>` / `inject-verticals.js <file>` / `inject-roles.js <file>` / `inject-demoenv.js <file>` for each, plus `inject-scripts-tab.js <file>` on the three demo dashboards, and `inject-bypassverify.js portal.html` + `inject-certificate.js portal.html`.
+3. Roll to dashboards: `node _shared/inject-battlecards.js <file>` / `inject-learningpath.js <file>` / `inject-statemigrate.js <file>` / `inject-profile.js <file>` / `inject-emailbanner.js <file>` / `inject-bypassverify.js <file>` / `inject-certificate.js <file>` / `inject-previewgate.js <file>` / `inject-verticals.js <file>` / `inject-roles.js <file>` / `inject-demoenv.js <file>` for each, plus `inject-scripts-tab.js <file>` on the three demo dashboards, and `inject-bypassverify.js portal.html` + `inject-certificate.js portal.html` + `inject-previewgate.js portal.html`.
 4. `node _shared/check-consistency.js` (expect all ✓), then verify in browser.

@@ -72,8 +72,10 @@ function renderLearningPath(mountId){
     const isCur = (t.key === CUR);
     // Same rule the target dashboard enforces (ottGateAllows): every prerequisite certified (or self-attested),
     // or that dashboard's own record carries a confirmed bypass. Never link into a gate screen.
-    const open = isCur || !t.requires || t.requires.every(function(k){ return ottCertOrAttested(k); }) || !!(st && st.bypassed === true);
-    const status = passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : ''))
+    // Temporary preview gate (§12): a track held back for this rep's role shows "In final review" and no links.
+    const preview = (!isCur && typeof ottPreviewBlocked === 'function') ? ottPreviewBlocked(t.certKey) : null;
+    const open = !preview && (isCur || !t.requires || t.requires.every(function(k){ return ottCertOrAttested(k); }) || !!(st && st.bypassed === true));
+    const status = preview ? '🔍 In final review — coming soon' : passed ? ('✅ Certified' + (st.certDate ? ' · ' + st.certDate : ''))
       : attested ? ('<span title="' + ottAttestedTitle(cert) + '">' + (cert.verified ? '✅ Completed elsewhere — verified by Sales Enablement' : '☑️ Completed elsewhere (self-attested · via ' + cert.viaLabel + ' bypass' + (cert.atLabel ? ' ' + cert.atLabel : '') + ')') + '</span>')
       : (isCur ? '▶ You are training here now' : (t.level==='Level 2' ? '🔒 Unlocks after Level 1' : '⬜ Not started'));
     const cls = passed ? 'lp-done' : (attested ? (cert.verified ? 'lp-verified' : 'lp-attested') : (isCur ? 'lp-cur' : 'lp-todo'));
@@ -86,7 +88,7 @@ function renderLearningPath(mountId){
       +   '<div class="lp-blurb">' + t.blurb + '</div>'
       +   '<div class="lp-assets">' + t.assets.map(function(a){
             // Locked track: chips are plain text — a link would only land on that dashboard's gate screen.
-            if (!open) return '<span class="lp-asset off" title="Unlocks after ' + t.requiresLabel + '">• ' + a.l + '</span>';
+            if (!open) return '<span class="lp-asset off" title="' + (preview ? 'In final review — coming soon' : 'Unlocks after ' + t.requiresLabel) + '">• ' + a.l + '</span>';
             // same dashboard: open the tab in place; other dashboard: navigate with a #ref= hash the module handles on load
             var link = isCur ? ('href="#" onclick="ottOpenRefTab(&quot;' + a.t + '&quot;);return false;"') : ('href="' + t.href + '#ref=' + a.t + '"');
             return '<a class="lp-asset ' + (unlocked?'on':'') + '" ' + link + ' title="Open ' + a.l + '">' + (unlocked?'✓':'•') + ' ' + a.l + '</a>';
@@ -94,7 +96,8 @@ function renderLearningPath(mountId){
       +   (unlocked ? '<div class="lp-playbook"><div class="lp-pb-q">🔑 <strong>Power question:</strong> ' + t.powerQuestion + '</div><div class="lp-pb-k">💡 ' + t.keyFact + '</div></div>' : '')
       +   (isCur ? ''
             : (open ? '<a class="lp-link" href="' + t.href + '#ref">' + (passed ? 'Open ' : 'Open ') + shortName + ' Reference Materials →</a>'
-                    : '<span class="lp-locked">🔒 Unlocks after ' + t.requiresLabel + ' certification</span>'))
+                    : (preview ? '<span class="lp-locked" title="' + preview.message.replace(/"/g, '&quot;') + '">🔍 In final review — you’ll be emailed when it’s released</span>'
+                               : '<span class="lp-locked">🔒 Unlocks after ' + t.requiresLabel + ' certification</span>')))
       + '</div></div>';
   }).join('');
   const pct = Math.round(earned / LEARNING_PATH.length * 100);
