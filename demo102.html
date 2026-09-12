@@ -297,26 +297,6 @@ input[type="text"]:focus, input[type="email"]:focus { outline: none; border-colo
 .badge-orange { background: var(--orange-light); color: var(--orange); }
 .badge-locked { background: var(--gray2); color: var(--gray4); }
 
-/* ── CERTIFICATE SCREEN ── */
-#screen-certificate { position: fixed; inset: 0; z-index: 500; background: linear-gradient(140deg, var(--navy) 0%, var(--blue) 55%, var(--purple) 100%); overflow-y: auto; padding: 2rem; align-items: flex-start; justify-content: center; }
-#screen-certificate.active { display: flex !important; }
-.cert-wrap { max-width: 760px; width: 100%; margin: 0 auto; }
-.cert-card { background: var(--white); border-radius: 20px; padding: 3rem 3.5rem; text-align: center; box-shadow: var(--shadow-lg); border: 4px solid var(--purple); position: relative; overflow: hidden; }
-.cert-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 8px; background: linear-gradient(90deg, var(--purple), var(--teal), var(--green)); }
-.cert-watermark { position: absolute; font-size: 12rem; opacity: 0.03; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-.cert-logo { font-size: 1.75rem; font-weight: 800; color: var(--navy); margin-bottom: 0.25rem; }
-.cert-logo span { color: var(--teal); }
-.cert-level { font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--purple); margin-bottom: 2rem; }
-.cert-presents { font-size: 0.9rem; color: var(--gray4); margin-bottom: 0.5rem; }
-.cert-name { font-size: 2.5rem; font-weight: 800; color: var(--navy); margin-bottom: 0.5rem; }
-.cert-subtitle { font-size: 0.95rem; color: var(--gray4); margin-bottom: 2rem; }
-.cert-badge-row { display: flex; justify-content: center; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
-.cert-badge { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--purple-light); color: var(--purple); font-weight: 700; font-size: 0.82rem; padding: 0.4rem 1rem; border-radius: 100px; border: 2px solid var(--purple); }
-.cert-score { font-size: 0.95rem; font-weight: 700; color: var(--gray5); margin-bottom: 0.25rem; }
-.cert-date { font-size: 0.88rem; color: var(--gray4); margin-bottom: 2rem; }
-.cert-seal { font-size: 3.5rem; margin-bottom: 0.75rem; }
-.cert-actions { display: flex; gap: 1rem; justify-content: center; margin-top: 2rem; flex-wrap: wrap; }
-
 /* ── UTILITY ── (identical to the other dashboards — the shared profile card and the standard
    Dashboard view depend on .flex/.items-center/.justify-between/.fw-bold/.text-navy) */
 .text-center { text-align: center; }
@@ -585,35 +565,6 @@ input[type="text"]:focus, input[type="email"]:focus { outline: none; border-colo
       </div>
       <button class="btn btn-primary btn-full" onclick="startTraining()" style="padding:0.9rem;">Begin Demo 102 Training →</button>
       <p class="text-center mt-1"><a class="welcome-back-link" href="portal.html" onclick="return cancelOnboarding()">← Cancel and return to the Training Portal</a></p>
-    </div>
-  </div>
-</div>
-
-<!-- CERTIFICATE SCREEN -->
-<div id="screen-certificate" class="screen">
-  <div class="cert-wrap">
-    <div class="cert-card">
-      <div class="cert-watermark">🎓</div>
-      <div class="cert-logo">Otti<span>mate</span></div>
-      <div class="cert-level">Level 1 · Demo 102 Certification</div>
-      <div class="cert-presents">This certifies that</div>
-      <div class="cert-name" id="cert-name">—</div>
-      <div class="cert-subtitle">has successfully completed the<br><strong>Vendor Pay &amp; Basic Reporting Training &amp; Certification</strong></div>
-      <div class="cert-badge-row">
-        <span class="cert-badge">💳 Vendor Pay</span>
-        <span class="cert-badge">📊 Standard Reports</span>
-        <span class="cert-badge">🏆 Demo 102 Certified</span>
-      </div>
-      <div class="cert-seal">🏅</div>
-      <div class="cert-score" id="cert-score">—</div>
-      <div class="cert-date" id="cert-date">—</div>
-      <div class="cert-actions">
-        <button class="btn btn-secondary" onclick="window.print()">🖨️ Print Certificate</button>
-        <button class="btn btn-outline" onclick="backToDashboardFromCert()">← Back to Dashboard</button>
-      </div>
-    </div>
-    <div style="text-align:center;margin-top:1.5rem;">
-      <button class="btn btn-secondary" onclick="backToDashboardFromCert()" style="background:rgba(255,255,255,0.15);color:white;border-color:rgba(255,255,255,0.3);">← Return to Training</button>
     </div>
   </div>
 </div>
@@ -2289,6 +2240,153 @@ if (typeof renderDashboard === 'function' && !window.__pcDashWrap){
   window.renderDashboard = function(){ _pcRd.apply(this, arguments); ottInjectProfileCard(); ottInjectModule3Nudge(); };
 }
 /* OTT-PROFILE:END */
+
+/* OTT-CERTID:START — Certificate IDs (CONSISTENCY-GUIDE §11). Identical in the portal AND every dashboard.
+   Injected by inject-certificate.js (dashboards) and inject-certid.js (portal).
+   Format:  OTT-<CODE>-<YYYYMMDD>-<VERTS>-<CHK>     e.g.  OTT-D101-20260504-SL.HC-7F3A
+     CODE  = FUND | D101 | D102 | D201        VERTS = 2-letter vertical codes joined by "." ("NA" if none)
+     CHK   = 4 hex chars — FNV-1a over code|date|verts|normalised rep name|salt.
+   The checksum ties the ID to the rep's name and deters casual invention; it is NOT cryptographic proof
+   (the salt lives in this file). Enablement approval remains the real verification (§10). */
+var OTT_CERT_CODES = { ottimate_fundamentals_state: 'FUND', ottimate_demo_state: 'D101', ottimate_d102_state: 'D102', ottimate_pomatch_state: 'D201' };
+var OTT_CERT_VERT_CODES = { restaurants: 'RE', hospitality: 'HO', retail: 'RT', grocery: 'GR', seniorliving: 'SL', healthcare: 'HC' };
+var OTT_CERT_SALT = 'ottimate-training-2026';
+function ottCertNorm(name){ return String(name || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+function ottCertHash(str){ var h = 0x811c9dc5; for (var i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000' + (h & 0xffff).toString(16).toUpperCase()).slice(-4); }
+/* "May 4, 2026" | Date | ms → "20260504" ('' if unparseable) */
+function ottCertYmd(d){ var t = (d instanceof Date) ? d : new Date(typeof d === 'number' ? d : String(d || '')); if (isNaN(t.getTime())) return ''; return t.getFullYear() + ('0' + (t.getMonth() + 1)).slice(-2) + ('0' + t.getDate()).slice(-2); }
+function ottCertVertCode(verts){ var c = (verts || []).map(function(v){ return OTT_CERT_VERT_CODES[v] || ''; }).filter(Boolean); return c.length ? c.join('.') : 'NA'; }
+function ottCertMakeId(stateKey, date, verts, name){
+  var code = OTT_CERT_CODES[stateKey]; var ymd = ottCertYmd(date); if (!code || !ymd) return '';
+  var vc = ottCertVertCode(verts);
+  return 'OTT-' + code + '-' + ymd + '-' + vc + '-' + ottCertHash([code, ymd, vc, ottCertNorm(name), OTT_CERT_SALT].join('|'));
+}
+/* Parse + verify. Returns { ok, stateKey, code, date (Date), dateLabel, verticals[], reason } */
+function ottCertParseId(id, name){
+  var m = String(id || '').trim().toUpperCase().match(/^OTT-(FUND|D101|D102|D201)-(\d{8})-([A-Z.]{2,})-([0-9A-F]{4})$/);
+  if (!m) return { ok: false, reason: 'That doesn’t look like a certificate ID (expected OTT-XXXX-YYYYMMDD-XX-XXXX).' };
+  var code = m[1], ymd = m[2], vc = m[3], chk = m[4];
+  var stateKey = Object.keys(OTT_CERT_CODES).filter(function(k){ return OTT_CERT_CODES[k] === code; })[0];
+  var date = new Date(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8));
+  var verticals = vc === 'NA' ? [] : vc.split('.').map(function(c){ return Object.keys(OTT_CERT_VERT_CODES).filter(function(k){ return OTT_CERT_VERT_CODES[k] === c; })[0]; }).filter(Boolean);
+  if (isNaN(date.getTime()) || (vc !== 'NA' && verticals.length !== vc.split('.').length)) return { ok: false, reason: 'That certificate ID is not valid.' };
+  var expect = ottCertHash([code, ymd, vc, ottCertNorm(name), OTT_CERT_SALT].join('|'));
+  if (expect !== chk) return { ok: false, stateKey: stateKey, reason: 'That certificate ID doesn’t match the name on your profile (' + (name || '—') + '). Check the ID, or make sure your profile name is exactly as printed on the certificate.' };
+  return { ok: true, stateKey: stateKey, code: code, date: date, dateLabel: date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), verticals: verticals };
+}
+/* OTT-CERTID:END */
+
+/* OTT-CERTIFICATE:START — shared certificate screen (CONSISTENCY-GUIDE §11). Identical in every dashboard.
+   Injected by inject-certificate.js, which retires each dashboard's own certificate markup, CSS, showCertificate()
+   and backToDashboardFromCert(). ONE design for every track (the Fundamentals / Demo 101 layout): navy frame,
+   badge, "Certificate of Completion", verticals trained, exam score, signature + issued date, Certificate ID.
+   Per-dashboard differences live ONLY in OTT_CERT_CONFIG (badge, level, program, description, score total).
+   Actions are identical everywhere: 🖨️ Print / Save as PDF · ← Back to Dashboard (always the Dashboard view).
+   Issued date = APP.certDate, which every dashboard stamps at the moment the exam is passed.
+   Deep link: <dashboard>.html#certificate opens it once the session has restored (used by the portal's
+   "View My Certificate"). Requires cert-id-module.js (ottCertMakeId). */
+var OTT_CERT_CONFIG = {
+  'fundamentals-training': { key: 'ottimate_fundamentals_state', badge: '🎓', level: 'Level 1 · Fundamentals', program: 'Ottimate Fundamentals',
+    desc: 'has successfully completed the <strong>Ottimate Fundamentals</strong> Sales Training Program, demonstrating proficiency in accounting fundamentals, Ottimate’s product and mission, industry vertical knowledge, and persona-based selling techniques.',
+    total: function(){ return (typeof EXAM_QUESTIONS !== 'undefined' && EXAM_QUESTIONS.length) || 20; } },
+  'demo-training': { key: 'ottimate_demo_state', badge: '🏅', level: 'Level 1 · Demo 101', program: 'Core AP + Statements',
+    desc: 'has successfully completed the <strong>Ottimate Core AP + Statements</strong> Demo Training &amp; Certification Program, demonstrating proficiency in AP automation product knowledge, demo techniques, and the complete Core AP + Statements demo script.',
+    total: function(){ return (typeof EXAM_QUESTIONS !== 'undefined' && EXAM_QUESTIONS.length) || 25; } },
+  'demo102': { key: 'ottimate_d102_state', badge: '🏅', level: 'Level 1 · Demo 102', program: 'Vendor Pay &amp; Basic Reporting',
+    desc: 'has successfully completed the <strong>Ottimate Vendor Pay &amp; Basic Reporting</strong> Demo Training &amp; Certification Program, demonstrating proficiency in the Vendor Pay revenue story, payment method hierarchy, standard reports &amp; dashboards, and the disbursement workflow.',
+    total: function(){ return 95; } },
+  'pomatch': { key: 'ottimate_pomatch_state', badge: '🎖️', level: 'Level 2 · Demo 201', program: 'PO Match',
+    desc: 'has successfully completed the <strong>Demo 201 — PO Match (Level 2)</strong> Demo Training &amp; Certification Program, demonstrating proficiency in purchase-order matching, exception handling, the Demonstrating-to-Win delivery method, discovery, and the PO Match demo walkthrough.',
+    total: function(){ return (typeof EXAM_QUESTIONS !== 'undefined' && EXAM_QUESTIONS.length) || 0; } }
+};
+var OTT_CERT_CSS = ''
+  + '#screen-certificate{background:var(--gray1);display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem;position:fixed;inset:0;z-index:400;overflow-y:auto;}'
+  + '#screen-certificate.active{display:flex;}'
+  + '.certificate{background:var(--white);border:8px solid var(--navy);border-radius:8px;max-width:720px;width:100%;padding:3rem;text-align:center;position:relative;box-shadow:var(--shadow-lg);}'
+  + '.certificate::before{content:"";position:absolute;inset:14px;border:2px solid var(--teal);border-radius:2px;pointer-events:none;}'
+  + '.cert-logo{font-size:1.75rem;font-weight:800;color:var(--navy);}.cert-logo span{color:var(--teal);}'
+  + '.cert-level{font-size:0.66rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-top:0.2rem;}'
+  + '.cert-badge{width:75px;height:75px;background:linear-gradient(135deg,var(--blue),var(--teal));border-radius:50%;margin:1.1rem auto;display:flex;align-items:center;justify-content:center;font-size:2rem;}'
+  + '.cert-title{font-size:0.75rem;letter-spacing:3px;text-transform:uppercase;color:var(--gray4);margin-bottom:0.75rem;}'
+  + '.cert-presents{font-size:0.9rem;color:var(--gray4);margin-bottom:0.3rem;}'
+  + '.cert-name{font-size:2.2rem;font-weight:800;color:var(--navy);font-style:italic;border-bottom:3px solid var(--teal);padding-bottom:0.4rem;margin:0.75rem 0 1rem;}'
+  + '.cert-desc{font-size:0.9rem;color:var(--gray5);line-height:1.65;max-width:500px;margin:0 auto 0.75rem;}'
+  + '.cert-verticals{margin:0.6rem auto 0.4rem;font-size:0.82rem;color:#555;max-width:420px;}.cert-verticals strong{color:#333;}'
+  + '.cert-score-badge{display:inline-block;background:var(--teal-light);border:2px solid var(--teal);border-radius:8px;padding:0.4rem 1.25rem;font-weight:700;color:var(--blue);font-size:0.9rem;margin-bottom:1.5rem;}'
+  + '.cert-footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--gray2);}'
+  + '.cert-sig-line{border-bottom:2px solid var(--navy);width:160px;margin-bottom:0.25rem;}.cert-sig-label{font-size:0.72rem;color:var(--gray4);text-align:left;}'
+  + '.cert-date-text{font-size:0.82rem;color:var(--gray4);text-align:right;}'
+  + '.cert-id{font-size:0.68rem;color:var(--gray3);letter-spacing:0.5px;margin-top:0.2rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}'
+  + '.cert-actions{display:flex;gap:0.75rem;margin-top:1.5rem;justify-content:center;flex-wrap:wrap;}'
+  + '@media (max-width:640px){.certificate{padding:2rem 1.25rem;}.cert-name{font-size:1.6rem;}.cert-footer{flex-direction:column;align-items:center;gap:0.75rem;}.cert-sig-label,.cert-date-text{text-align:center;}}'
+  + '@media print{body.printing-cert>*:not(#screen-certificate){display:none !important;}body.printing-cert #screen-certificate{display:flex !important;position:static;padding:0;background:#fff;}body.printing-cert .certificate{box-shadow:none;}body.printing-cert .cert-actions{display:none !important;}}';
+function ottCertConfig(){ var file = (location.pathname.match(/([^/]+)\.html/) || [])[1] || ''; return OTT_CERT_CONFIG[file] || null; }
+function ottCertEnsureScreen(){
+  if (!document.getElementById('ott-cert-css')){ var st = document.createElement('style'); st.id = 'ott-cert-css'; st.textContent = OTT_CERT_CSS; document.head.appendChild(st); }
+  var el = document.getElementById('screen-certificate'); if (el) return el;
+  var cfg = ottCertConfig() || { badge: '🎓', level: '', desc: '' };
+  el = document.createElement('div'); el.id = 'screen-certificate';
+  el.innerHTML = '<div class="certificate" id="certificate-inner">'
+    + '<div class="cert-logo">Ottim<span>ate</span></div>'
+    + '<div class="cert-level">' + cfg.level + '</div>'
+    + '<div class="cert-badge">' + cfg.badge + '</div>'
+    + '<div class="cert-title">Certificate of Completion</div>'
+    + '<div class="cert-presents">This certifies that</div>'
+    + '<div class="cert-name" id="cert-name">—</div>'
+    + '<div class="cert-desc">' + cfg.desc + '</div>'
+    + '<div class="cert-verticals" id="cert-verticals"></div>'
+    + '<div class="cert-score-badge" id="cert-score">Final Exam Score: —</div>'
+    + '<div class="cert-footer"><div class="cert-sig"><div class="cert-sig-line"></div><div class="cert-sig-label">Ottimate Sales Enablement</div></div>'
+    + '<div><div class="cert-date-text" id="cert-date"></div><div class="cert-id" id="cert-id"></div></div></div>'
+    + '</div>'
+    + '<div class="cert-actions no-print">'
+    + '<button class="btn btn-primary" onclick="printCertificate()">🖨️ Print / Save as PDF</button>'
+    + '<button class="btn btn-secondary" onclick="backToDashboardFromCert()">← Back to Dashboard</button>'
+    + '</div>';
+  document.body.appendChild(el);
+  return el;
+}
+function ottCertEsc(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function showCertificate(){
+  if (typeof APP === 'undefined') return;
+  var cfg = ottCertConfig(); var el = ottCertEnsureScreen();
+  var total = cfg ? cfg.total() : 0;
+  var pct = (total && APP.examScore != null) ? Math.round((APP.examScore / total) * 100) : null;
+  var certVerts = (APP.certVerticals && APP.certVerticals.length) ? APP.certVerticals : (APP.verticals || []);
+  var labels = certVerts.map(function(v){ return (typeof VERTICAL_LABELS !== 'undefined' && VERTICAL_LABELS[v]) || v; }).join(' · ');
+  var issued = APP.certDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('cert-name').textContent = APP.name || '—';
+  document.getElementById('cert-verticals').innerHTML = labels ? '<strong>Industry Verticals Trained:</strong> ' + ottCertEsc(labels) : '';
+  document.getElementById('cert-score').textContent = (APP.examScore != null && total) ? 'Final Exam Score: ' + APP.examScore + '/' + total + (pct != null ? ' (' + pct + '%)' : '') : 'Ottimate Certified';
+  document.getElementById('cert-date').textContent = 'Issued: ' + issued;
+  var id = (cfg && typeof ottCertMakeId === 'function') ? ottCertMakeId(cfg.key, issued, certVerts, APP.name) : '';
+  document.getElementById('cert-id').textContent = id ? 'Certificate ID: ' + id : '';
+  el.classList.add('active'); el.scrollTop = 0;
+}
+function backToDashboardFromCert(){
+  var el = document.getElementById('screen-certificate'); if (el) el.classList.remove('active');
+  var shell = document.getElementById('app-shell'); if (shell) shell.classList.add('active');
+  if (typeof showDashboard === 'function') showDashboard();
+}
+function printCertificate(){
+  document.body.classList.add('printing-cert');
+  var done = function(){ document.body.classList.remove('printing-cert'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(function(){ window.print(); setTimeout(done, 1500); }, 30);
+}
+/* #certificate deep link (portal "View My Certificate"): wait for the session to restore, then open. */
+(function(){
+  if ((location.hash || '') !== '#certificate') return;
+  var tries = 0;
+  var iv = setInterval(function(){
+    var shell = document.getElementById('app-shell');
+    if (shell && shell.classList.contains('active')){ clearInterval(iv); history.replaceState(null, '', location.pathname + location.search); if (typeof APP !== 'undefined' && APP.examPassed) showCertificate(); }
+    else if (++tries > 80) clearInterval(iv);
+  }, 150);
+})();
+/* OTT-CERTIFICATE:END */
+
+
 
 /* OTT-VERTICALS:START — data generated from _shared/verticals-profiles.js + verticals-lenses.js by inject-verticals.js; do not hand-edit. — shared Industry Verticals reference section (render code).
    Identical in every dashboard. The injector prepends the data:
@@ -4100,27 +4198,6 @@ function retakeExam() {
 // ══════════════════════════════════════════════════════════
 // CERTIFICATE
 // ══════════════════════════════════════════════════════════
-function showCertificate() {
-  const certEl = document.getElementById('screen-certificate');
-  const appEl = document.getElementById('app-shell');
-  if (!certEl || !appEl) return;
-  // Fill cert fields
-  const name = APP.name || 'Sales Representative';
-  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const el = (id) => document.getElementById(id);
-  if (el('cert-name')) el('cert-name').textContent = name;
-  if (el('cert-date')) el('cert-date').textContent = date;
-  if (el('cert-score')) el('cert-score').textContent = `${APP.examScore}/95 (${Math.round((APP.examScore/95)*100)}%)`;
-  appEl.classList.remove('active');
-  certEl.classList.add('active');
-}
-
-function backToDashboardFromCert() {
-  document.getElementById('screen-certificate').classList.remove('active');
-  document.getElementById('app-shell').classList.add('active');
-  renderExam();
-}
-
 // ══════════════════════════════════════════════════════════
 // PAGE INIT
 // ══════════════════════════════════════════════════════════
